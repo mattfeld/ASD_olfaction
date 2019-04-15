@@ -39,7 +39,7 @@ export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 workDir=~/compute/AutismOlfactory
 tempDir=${workDir}/Template
 scriptDir=${workDir}/Scripts
-timingDir=${workDir}/TimingFiles
+timingDir=${workDir}/derivatives/TimingFiles
 
 # Subject Variables
 subj=$1
@@ -54,17 +54,10 @@ seedLen=${#seedCoord[@]}
 
 
 # O/variables
-TR=2
+TR=`3dinfo -tr ${deconList[0]}+orig`
 input="scale_BORun1_ANTS_resampled+tlrc scale_BORun2_ANTS_resampled+tlrc scale_BORun3_ANTS_resampled+tlrc"
-string=${subj/BO}
+string=${subj#*-}
 ref=scale_BORun1_ANTS_resampled+tlrc
-
-
-
-
-
-### Go
-cd $ppiDir
 
 
 # Check arrays
@@ -77,34 +70,41 @@ fi
 
 
 
-### Create CleanData for each deconv
+### --- Step One --- ###
+#
+# Create a clean version of each deconvolution by remove effects of no interest.
+# Simulate an ideal BOLD response, and generate behavioral contrasts.
+
+
+cd $ppiDir
+
 for i in ${deconList[@]}; do
 	if [ ! -f CleanData${i}+tlrc.HEAD ]; then
 
 		# Create volume of unwanted data, replace censored TRs with mean of neighbors
-		select="0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18"
-		3dSynthesize -prefix effNoInt_AODecon${i} -matrix AODecon${i}.xmat.1D \
-		-cbucket cstats_AODecon${i}+tlrc -select $select -cenfill nbhr
+
+
+		#select="0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18"
+
+
+		3dSynthesize -prefix effNoInt_AO_${i} -matrix X.${i}.xmat.1D \
+		-cbucket ${i}_cbucket_REML+tlrc -select $select -cenfill nbhr
 
 		# remove unwanted regressors
 		3dTcat -prefix all_runs${i} -tr $TR $input
-		3dcalc -a all_runs${i}+tlrc -b effNoInt_AODecon${i}+tlrc -expr 'a-b' -prefix CleanData${i}
+		3dcalc -a all_runs${i}+tlrc -b effNoInt_AO_${i}+tlrc -expr 'a-b' -prefix CleanData${i}
 	fi
 done
 
 
-
-
-### Create ideal response function
+# Create ideal response function
 if [ ! -f ClassicBold.1D ]; then
 	waver -dt $TR -GAM -inline 1@1 > ClassicBold.1D
 fi
 
 
-
-
-### Create behavior vectors
-if [ ! -f Beh_FUBO_contrast.1D ]; then
+# Create behavior vectors
+if [ ! -s Beh_FUBO_contrast.1D ]; then
 
 	cp ${timingDir}/Contrast/${string}_ppi.txt .
 	count=`cat ${string}_ppi.txt | wc -l`
@@ -169,6 +169,11 @@ c=0; for a in Beh*contrast.1D; do
 	conList[$c]=${tmp%_*}
 	let c=$[$c+1]
 done
+
+
+
+
+
 
 
 
