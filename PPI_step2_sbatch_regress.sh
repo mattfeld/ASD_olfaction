@@ -276,7 +276,9 @@ GenDecon (){
     -x1D X.${h_out}.xmat.1D \
     -xjpeg X.${h_out}.jpg \
     -x1D_uncensored X.${h_out}.nocensor.xmat.1D \
-    -bucket ${h_out}_stats -errts ${h_out}_errts" > ${h_out}_deconv.sh
+    -bucket ${h_out}_stats \
+    -cbucket ${h_out}_cbucket \
+    -errts ${h_out}_errts" > ${h_out}_deconv.sh
 }
 
 

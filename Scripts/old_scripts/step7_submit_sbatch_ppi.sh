@@ -1,0 +1,41 @@
+#!/bin/bash
+
+
+# written by Nathan Muncy on 4/13/18
+
+
+### Notes:
+# This is a wrapper script used to submit the step7_sbatch job
+
+
+## Set up variables, and output dirs
+workDir=~/compute/AutismOlfactory
+scriptDir=${workDir}/Scripts
+slurmDir=${workDir}/Slurm_out
+time=`date '+%Y_%m_%d-%H_%M_%S'`
+outDir=${slurmDir}/ppi7_${time}
+
+mkdir -p $outDir
+
+
+# Use same scans as Valentina list
+subjList=(BO{670,699,674,632,694,698,700,703,709,710,676,701,606,683,712,608,915,618,695,704,930,625,696,705,976,706,999,708,1109,1138,1113,1140,1048,1127,1131,1133,1115,1128,1116,1130,1055,1117,1063,1118,1065,1119,1086,1120,1134,1104,1121,1135,1108,1126,1137})
+
+
+## submit jobs
+cd $workDir
+for i in ${subjList[@]}; do
+
+	# make sure extra data is there
+	if [ ! -f ${i}/ppi_data/struct_raw.nii.gz ]; then
+		cp ${i}/t1_data/struct_raw.nii.gz ${i}/ppi_data/
+	fi
+
+    sbatch \
+    -o ${outDir}/output_ppi7_${i}.txt \
+    -e ${outDir}/error_ppi7_${i}.txt \
+    ${scriptDir}/step7_sbatch_ppi.sh $i
+
+    sleep 1
+done
+
