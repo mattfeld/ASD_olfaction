@@ -4,10 +4,10 @@
 ### This is just a request for supercomputer resources
 
 #SBATCH --time=05:00:00   # walltime
-#SBATCH --ntasks=6   # number of processor cores (i.e. tasks)
+#SBATCH --ntasks=4   # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
-#SBATCH --mem-per-cpu=8gb   # memory per CPU core
-#SBATCH -J "AO3"   # job name
+#SBATCH --mem-per-cpu=4gb   # memory per CPU core
+#SBATCH -J "PPI4"   # job name
 
 # Compatibility variables for PBS. Delete if not needed.
 export PBS_NODEFILE=`/fslapps/fslutils/generate_pbs_nodefile`
@@ -33,44 +33,46 @@ export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 
 
 
-### Set Up
-
 # General Variables
 workDir=~/compute/AutismOlfactory
 tempDir=${workDir}/Template
 scriptDir=${workDir}/Scripts
 timingDir=${workDir}/derivatives/TimingFiles
 
+
 # Subject Variables
 subj=$1
+string=${subj#*-}
 ppiDir=${workDir}/derivatives/${subj}
 
 
-# Arrays - Coord are updated for Tal space
+# Arrays
 deconList=(FUMC FUMvC FUvC)
-seedCoord=("-29 1 -18" "27 2 -21" "16 41 -2" "26 -58 28" "20 -1 -14" "-23 -3 -13" "17 35 1" "27 -55 26" "40 44 23" "20 -18 38" "20 -81 41" "-32 -76 39" "-40 -71 36" "-60 -12 25" "54 -54 -12" "16 -45 42")
-seedName=(LPF RPF RAWM RPWM 1 2 3 4 5 6 7 8a 8b 9 10 11)
+behInterest=(MASK FBO UBO CA Odor)
+
+seedCoord=("-27 -14 -22")
+seedName=(LHC)
 seedLen=${#seedCoord[@]}
 
 
-# O/variables
-TR=`3dinfo -tr ${deconList[0]}+orig`
-input="scale_BORun1_ANTS_resampled+tlrc scale_BORun2_ANTS_resampled+tlrc scale_BORun3_ANTS_resampled+tlrc"
-string=${subj#*-}
-ref=scale_BORun1_ANTS_resampled+tlrc
 
 
-# Check arrays
-hold=${#seedName[@]}
-if [ $hold != $seedLen ]; then
-	> ARRAY_ERROR
-	exit 1
-fi
+### Functions
+MatchString () {
+
+	local e match="$1"
+
+	shift
+	for e; do
+		[[ "$e" == "$match" ]] && return 0
+	done
+	return 1
+}
 
 
 
 
-### --- Step One --- ###
+### --- Set up --- ###
 #
 # Create a clean version of each deconvolution by remove effects of no interest.
 # Simulate an ideal BOLD response, and generate behavioral contrasts.
@@ -78,21 +80,52 @@ fi
 
 cd $ppiDir
 
+# determine input
+unset input
+for a in *scale+tlrc.HEAD; do
+	file=${a%.*}
+	input+="$file "
+done
+
+
+# set reference variables
+firstScale="$(set -- *scale+tlrc.HEAD; echo "$1")"
+ref=${firstScale%.*}
+TR=`3dinfo -tr $ref`
+
+
+### Make clean data
 for i in ${deconList[@]}; do
-	if [ ! -f CleanData${i}+tlrc.HEAD ]; then
+	if [ ! -f tmp_CleanData_${i}+tlrc.HEAD ]; then
 
-		# Create volume of unwanted data, replace censored TRs with mean of neighbors
+		# Determine effects of no interest - those not in $behInterest
+		hold=`grep ColumnLabels X.${i}.xmat.1D | sed 's/\#//g' | sed 's/\;//g'`
+		tmp=${hold#*\"}; colLab=(${tmp%\"*})
+
+		unset sel
+		for j in ${!colLab[@]}; do
+			tmp1=${colLab[$j]#*_}; test=${tmp1%?*}
+			MatchString $test "${behInterest[@]}"
+			if [ $? == 1 ]; then
+				sel+="$j "
+			fi
+		done
 
 
-		#select="0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18"
+		# remove extra sub-brick added by 3dREMlfit
+		sub=`3dinfo -nv ${i}_cbucket_REML+tlrc`
+		less=$(($sub-2))
+		3dTcat -prefix tmp_${i}_cbucket -tr $TR "${i}_cbucket_REML+tlrc[0..${less}]"
 
 
-		3dSynthesize -prefix effNoInt_AO_${i} -matrix X.${i}.xmat.1D \
-		-cbucket ${i}_cbucket_REML+tlrc -select $select -cenfill nbhr
+		# create file of unwanted data, replace censored TRs w/mean of neighbors
+		3dSynthesize -prefix tmp_effNoInt_AO_${i} -matrix X.${i}.xmat.1D \
+		-cbucket tmp_${i}_cbucket+tlrc -select $sel -cenfill nbhr
 
-		# remove unwanted regressors
-		3dTcat -prefix all_runs${i} -tr $TR $input
-		3dcalc -a all_runs${i}+tlrc -b effNoInt_AO_${i}+tlrc -expr 'a-b' -prefix CleanData${i}
+
+		# remove unwanted regressors from combined run to produce Clean Data
+		3dTcat -prefix tmp_all_runs_${i} -tr $TR $input
+		3dcalc -a tmp_all_runs_${i}+tlrc -b tmp_effNoInt_AO_${i}+tlrc -expr 'a-b' -prefix tmp_CleanData_${i}
 	fi
 done
 
@@ -103,7 +136,7 @@ if [ ! -f ClassicBold.1D ]; then
 fi
 
 
-# Create behavior vectors
+### Create behavior vectors
 if [ ! -s Beh_FUBO_contrast.1D ]; then
 
 	cp ${timingDir}/Contrast/${string}_ppi.txt .
@@ -113,28 +146,31 @@ if [ ! -s Beh_FUBO_contrast.1D ]; then
 	> UBO_contrast.txt
 	> FUBO_contrast.txt
 
+
 	# Extract ppi.txt info
 	for(( a=1; a<=$count; a++ )); do
 
 		value=`sed -n ${a}p ${string}_ppi.txt`
 
+
 		# FBO & UBO
 		if [ $value == 1 ]; then
-				echo "1" >> FBO_contrast.txt
-				echo "0" >> UBO_contrast.txt
-			elif [ $value == -1 ]; then
-				echo "0" >> FBO_contrast.txt
-				echo "1" >> UBO_contrast.txt
-			else
-				echo "0" >> FBO_contrast.txt
-				echo "0" >> UBO_contrast.txt
+			echo "1" >> FBO_contrast.txt
+			echo "0" >> UBO_contrast.txt
+		elif [ $value == -1 ]; then
+			echo "0" >> FBO_contrast.txt
+			echo "1" >> UBO_contrast.txt
+		else
+			echo "0" >> FBO_contrast.txt
+			echo "0" >> UBO_contrast.txt
 		fi
+
 
 		# FUBO
 		if [ $value != 0 ]; then
-				echo "1" >> FUBO_contrast.txt
-			else
-				echo "0" >> FUBO_contrast.txt
+			echo "1" >> FUBO_contrast.txt
+		else
+			echo "0" >> FUBO_contrast.txt
 		fi
 	done
 
@@ -173,13 +209,20 @@ done
 
 
 
+### --- Extract Seed Time Series --- ###
+#
+# Construct seeds, and extract mean time series (TS) from Clean Data.
+# TS is deconvolved for BOLD response, rendering "neural" TS.
+# Functional TR = 2000 ms, stimulus duration is measured in 100 ms,
+# so the TS is upsampled in order to extract "neural" TS associated
+# w/the behavior.
+# Then the TS is downsampled and reconvolved with BOLD to generate
+# a task-associated BOLD TS.
 
 
-
-
-
-### Get seed time series from each deconv
+# Get seed TS from e/deconvolution
 c=0; while [ $c -lt $seedLen ]; do
+
 
 	# Make seeds
 	seed=Seed_${seedName[$c]}
@@ -190,27 +233,31 @@ c=0; while [ $c -lt $seedLen ]; do
 	fi
 
 	for j in ${deconList[@]}; do
-		if [ ! -f tmp_HRes_${seed}_d${j}_neural.1D ] && [ ! -f ${seed}_d2_TS_CA.1D ]; then
+		if [ ! -f tmp_HRes_${seed}_${j}_neural.1D ] && [ ! -f ${seed}_${j}_TS_CA.1D ]; then
+
 
 			# Get seed TS from each CleanData, solve RHS for neural
-			3dmaskave -quiet -mask ${seed}+tlrc CleanData${j}+tlrc > ${seed}_d${j}_timeSeries.1D
-			3dTfitter -RHS ${seed}_d${j}_timeSeries.1D -FALTUNG ClassicBold.1D tmp_${seed}_d${j}_neural 012 0
+			3dmaskave -quiet -mask ${seed}+tlrc tmp_CleanData_${j}+tlrc > ${seed}_${j}_timeSeries.1D
+			3dTfitter -RHS ${seed}_${j}_timeSeries.1D -FALTUNG ClassicBold.1D tmp_${seed}_${j}_neural 012 0
 
-			# Resample seed TS from 2s to 0.1s resolution (HRes) to match stimulus duration
-			> tmp_HRes_${seed}_d${j}.txt
-			1dtranspose tmp_${seed}_d${j}_neural.1D > tmp_Trans_${seed}_d${j}_neural.1D
-			data=(`cat tmp_Trans_${seed}_d${j}_neural.1D`)
+
+			# Resample seed TS from 2s to 0.1s resolution (HRes)
+			> tmp_HRes_${seed}_${j}.txt
+			1dtranspose tmp_${seed}_${j}_neural.1D > tmp_Trans_${seed}_${j}_neural.1D
+			data=(`cat tmp_Trans_${seed}_${j}_neural.1D`)
 			dataLen=${#data[@]}
 
 			cc=0; while [ $cc -lt $dataLen ]; do
 				for((i=1; i<=20; i++)); do
-					echo ${data[$cc]} >> tmp_HRes_${seed}_d${j}.txt
+					echo ${data[$cc]} >> tmp_HRes_${seed}_${j}.txt
 				done
 				let cc=$[$cc+1]
 			done
 
-			ConvertDset -o_1D -input tmp_HRes_${seed}_d${j}.txt -prefix tmp_HRes_${seed}_d${j}_neural
-			mv tmp_HRes_${seed}_d${j}_neural.1D.dset tmp_HRes_${seed}_d${j}_neural.1D
+
+			# Create 1D file
+			ConvertDset -o_1D -input tmp_HRes_${seed}_${j}.txt -prefix tmp_HRes_${seed}_${j}_neural
+			mv tmp_HRes_${seed}_${j}_neural.1D.dset tmp_HRes_${seed}_${j}_neural.1D
 		fi
 	done
 
@@ -220,191 +267,191 @@ done
 
 
 
-### Extract behavior TS from appropriate deconv from e/seed
-for i in ${seedName[@]}; do
-	for j in ${conList[@]}; do
+#### Extract behavior TS from appropriate deconv from e/seed
+#for i in ${seedName[@]}; do
+	#for j in ${conList[@]}; do
 
-		# Determine deconv
-		if [ $j == CA ]; then
-				arr=(2 3 4)
-			elif [ $j == FUBO ]; then
-				arr=(4)
-			elif [ $j == OD ]; then
-				arr=(3)
-			else
-				arr=(2)
-		fi
+		## Determine deconv
+		#if [ $j == CA ]; then
+				#arr=(2 3 4)
+			#elif [ $j == FUBO ]; then
+				#arr=(4)
+			#elif [ $j == OD ]; then
+				#arr=(3)
+			#else
+				#arr=(2)
+		#fi
 
-		for k in ${arr[@]}; do
-			if [ ! -f Seed_${i}_d${k}_TS_${j}.1D ]; then
+		#for k in ${arr[@]}; do
+			#if [ ! -f Seed_${i}_d${k}_TS_${j}.1D ]; then
 
-				# Extract seed beh neural timeseries, resample back to 2s (LRes)
-				1deval -a tmp_HRes_Seed_${i}_d${k}_neural.1D -b Beh_${j}_contrast.1D -expr 'a*b' > tmp_Seed_${i}_d${k}_neural_${j}_beh.1D
-				cat tmp_Seed_${i}_d${k}_neural_${j}_beh.1D | awk -v n=20 'NR%n==0' > tmp_LRes_Seed_${i}_d${k}_${j}.txt
-				ConvertDset -o_1D -input tmp_LRes_Seed_${i}_d${k}_${j}.txt -prefix tmp_LRes_Seed_${i}_d${k}_neural_${j}
-				mv tmp_LRes_Seed_${i}_d${k}_neural_${j}.1D.dset tmp_LRes_Seed_${i}_d${k}_neural_${j}.1D
+				## Extract seed beh neural timeseries, resample back to 2s (LRes)
+				#1deval -a tmp_HRes_Seed_${i}_d${k}_neural.1D -b Beh_${j}_contrast.1D -expr 'a*b' > tmp_Seed_${i}_d${k}_neural_${j}_beh.1D
+				#cat tmp_Seed_${i}_d${k}_neural_${j}_beh.1D | awk -v n=20 'NR%n==0' > tmp_LRes_Seed_${i}_d${k}_${j}.txt
+				#ConvertDset -o_1D -input tmp_LRes_Seed_${i}_d${k}_${j}.txt -prefix tmp_LRes_Seed_${i}_d${k}_neural_${j}
+				#mv tmp_LRes_Seed_${i}_d${k}_neural_${j}.1D.dset tmp_LRes_Seed_${i}_d${k}_neural_${j}.1D
 
-				# add BOLD back to TS
-				num=`cat tmp_Trans_Seed_${i}_d${k}_neural.1D | wc -l`
-				waver -GAM -peak 1 -dt $TR -input tmp_LRes_Seed_${i}_d${k}_neural_${j}.1D -numout $num > Seed_${i}_d${k}_TS_${j}.1D
-			fi
-		done
-	done
-done
-
-
-# Clean
-if [ $2 != T ]; then
-	rm tmp*
-fi
+				## add BOLD back to TS
+				#num=`cat tmp_Trans_Seed_${i}_d${k}_neural.1D | wc -l`
+				#waver -GAM -peak 1 -dt $TR -input tmp_LRes_Seed_${i}_d${k}_neural_${j}.1D -numout $num > Seed_${i}_d${k}_TS_${j}.1D
+			#fi
+		#done
+	#done
+#done
 
 
+## Clean
+#if [ $2 != T ]; then
+	#rm tmp*
+#fi
 
 
-### Deconvolve again, with new interaction terms, for each seed
-for i in ${seedName[@]}; do
-	for j in ${deconList[@]}; do
 
-		output=FINAL_${i#*_}_d${j}
 
-		if [ $j == 2 ]; then
+#### Deconvolve again, with new interaction terms, for each seed
+#for i in ${seedName[@]}; do
+	#for j in ${deconList[@]}; do
 
-			# Compare all Stimuli (decon2)
-			TF1=${string}_ENI1.txt;		L1=ENI1
-			TF2=${string}_RI.txt; 		L2=RI
-			TF3=${string}_RP.txt; 		L3=RP
-			TF4=${string}_Jit1.txt;		L4=ENI2
-			TF5=${string}_MASK.txt;		L5=Mask
-			TF6=${string}_FBO.txt; 		L6=FBO
-			TF7=${string}_UBO.txt; 		L7=UBO
-			TF8=${string}_CA.txt;  		L8=CA
+		#output=FINAL_${i#*_}_d${j}
 
-			seedTS=Seed_${i}_d2_timeSeries.1D
-			fboBeh=Seed_${i}_d2_TS_FBO.1D
-			uboBeh=Seed_${i}_d2_TS_UBO.1D
-			MaskBeh=Seed_${i}_d2_TS_Mask.1D
-			CABeh=Seed_${i}_d2_TS_CA.1D
+		#if [ $j == 2 ]; then
 
-			if [ ! -f ${output}+tlrc.HEAD ]; then
+			## Compare all Stimuli (decon2)
+			#TF1=${string}_ENI1.txt;		L1=ENI1
+			#TF2=${string}_RI.txt; 		L2=RI
+			#TF3=${string}_RP.txt; 		L3=RP
+			#TF4=${string}_Jit1.txt;		L4=ENI2
+			#TF5=${string}_MASK.txt;		L5=Mask
+			#TF6=${string}_FBO.txt; 		L6=FBO
+			#TF7=${string}_UBO.txt; 		L7=UBO
+			#TF8=${string}_CA.txt;  		L8=CA
 
-				3dDeconvolve \
-				-input $input \
-				-mask Template_mask+tlrc \
-				-polort A \
-				-num_stimts 19 \
-				-stim_file   1  "motion_All[0]" -stim_label 1 "Roll"  -stim_base 1 \
-				-stim_file   2  "motion_All[1]" -stim_label 2 "Pitch" -stim_base 2 \
-				-stim_file   3  "motion_All[2]" -stim_label 3 "Yaw"   -stim_base 3 \
-				-stim_file   4  "motion_All[3]" -stim_label 4 "dS"    -stim_base 4 \
-				-stim_file   5  "motion_All[4]" -stim_label 5 "dL"    -stim_base 5 \
-				-stim_file   6  "motion_All[5]" -stim_label 6 "dP"    -stim_base 6 \
-				-stim_times		  7  ${TF1} "BLOCK(0.5,1)" -stim_label  7 $L1 \
-				-stim_times		  8  ${TF2} "BLOCK(6,1)"   -stim_label  8 $L2 \
-				-stim_times		  9  ${TF3} "BLOCK(6,1)"   -stim_label  9 $L3 \
-				-stim_times_AM2  10  ${TF4} "dmBLOCK(1)"   -stim_label 10 $L4 \
-				-stim_times_AM2  11  ${TF5} "dmBLOCK(1)"   -stim_label 11 $L5 \
-				-stim_times_AM2  12  ${TF6} "dmBLOCK(1)"   -stim_label 12 $L6 \
-				-stim_times_AM2  13  ${TF7} "dmBLOCK(1)"   -stim_label 13 $L7 \
-				-stim_times_AM2  14  ${TF8} "dmBLOCK(1)"   -stim_label 14 $L8 \
-				-stim_file   	 15  $seedTS               -stim_label 15 Seed \
-				-stim_file   	 16  $fboBeh               -stim_label 16 Int.FBO \
-				-stim_file   	 17  $uboBeh               -stim_label 17 Int.UBO \
-				-stim_file   	 18  $MaskBeh              -stim_label 18 Int.Mask \
-				-stim_file   	 19  $CABeh                -stim_label 19 Int.CA \
-				-censor "motion_censor_vector_All.txt[0]" \
-				-bucket $output \
-				-errts errts_$output \
-				-rout -tout \
-				-jobs 6 -GOFORIT 12
-			fi
+			#seedTS=Seed_${i}_d2_timeSeries.1D
+			#fboBeh=Seed_${i}_d2_TS_FBO.1D
+			#uboBeh=Seed_${i}_d2_TS_UBO.1D
+			#MaskBeh=Seed_${i}_d2_TS_Mask.1D
+			#CABeh=Seed_${i}_d2_TS_CA.1D
 
-		elif [ $j == 3 ]; then
+			#if [ ! -f ${output}+tlrc.HEAD ]; then
 
-			# Compare Odors (Mask+FBO+UBO) to CA (decon3)
-			TF1=${string}_ENI1.txt;		L1=ENI1
-			TF2=${string}_RI.txt; 		L2=RI
-			TF3=${string}_RP.txt; 		L3=RP
-			TF4=${string}_Jit1.txt;		L4=ENI2
-			TF5=${string}_CA.txt;		L5=CA
-			TF6=${string}_Odor.txt; 	L6=Odor
+				#3dDeconvolve \
+				#-input $input \
+				#-mask Template_mask+tlrc \
+				#-polort A \
+				#-num_stimts 19 \
+				#-stim_file   1  "motion_All[0]" -stim_label 1 "Roll"  -stim_base 1 \
+				#-stim_file   2  "motion_All[1]" -stim_label 2 "Pitch" -stim_base 2 \
+				#-stim_file   3  "motion_All[2]" -stim_label 3 "Yaw"   -stim_base 3 \
+				#-stim_file   4  "motion_All[3]" -stim_label 4 "dS"    -stim_base 4 \
+				#-stim_file   5  "motion_All[4]" -stim_label 5 "dL"    -stim_base 5 \
+				#-stim_file   6  "motion_All[5]" -stim_label 6 "dP"    -stim_base 6 \
+				#-stim_times		  7  ${TF1} "BLOCK(0.5,1)" -stim_label  7 $L1 \
+				#-stim_times		  8  ${TF2} "BLOCK(6,1)"   -stim_label  8 $L2 \
+				#-stim_times		  9  ${TF3} "BLOCK(6,1)"   -stim_label  9 $L3 \
+				#-stim_times_AM2  10  ${TF4} "dmBLOCK(1)"   -stim_label 10 $L4 \
+				#-stim_times_AM2  11  ${TF5} "dmBLOCK(1)"   -stim_label 11 $L5 \
+				#-stim_times_AM2  12  ${TF6} "dmBLOCK(1)"   -stim_label 12 $L6 \
+				#-stim_times_AM2  13  ${TF7} "dmBLOCK(1)"   -stim_label 13 $L7 \
+				#-stim_times_AM2  14  ${TF8} "dmBLOCK(1)"   -stim_label 14 $L8 \
+				#-stim_file   	 15  $seedTS               -stim_label 15 Seed \
+				#-stim_file   	 16  $fboBeh               -stim_label 16 Int.FBO \
+				#-stim_file   	 17  $uboBeh               -stim_label 17 Int.UBO \
+				#-stim_file   	 18  $MaskBeh              -stim_label 18 Int.Mask \
+				#-stim_file   	 19  $CABeh                -stim_label 19 Int.CA \
+				#-censor "motion_censor_vector_All.txt[0]" \
+				#-bucket $output \
+				#-errts errts_$output \
+				#-rout -tout \
+				#-jobs 6 -GOFORIT 12
+			#fi
 
-			seedTS=Seed_${i}_d3_timeSeries.1D
-			CABeh=Seed_${i}_d3_TS_CA.1D
-			ODBeh=Seed_${i}_d3_TS_OD.1D
+		#elif [ $j == 3 ]; then
 
-			if [ ! -f ${output}+tlrc.HEAD ]; then
+			## Compare Odors (Mask+FBO+UBO) to CA (decon3)
+			#TF1=${string}_ENI1.txt;		L1=ENI1
+			#TF2=${string}_RI.txt; 		L2=RI
+			#TF3=${string}_RP.txt; 		L3=RP
+			#TF4=${string}_Jit1.txt;		L4=ENI2
+			#TF5=${string}_CA.txt;		L5=CA
+			#TF6=${string}_Odor.txt; 	L6=Odor
 
-				3dDeconvolve \
-				-input $input \
-				-mask Template_mask+tlrc \
-				-polort A \
-				-num_stimts 15 \
-				-stim_file   1  "motion_All[0]" -stim_label 1 "Roll"  -stim_base 1 \
-				-stim_file   2  "motion_All[1]" -stim_label 2 "Pitch" -stim_base 2 \
-				-stim_file   3  "motion_All[2]" -stim_label 3 "Yaw"   -stim_base 3 \
-				-stim_file   4  "motion_All[3]" -stim_label 4 "dS"    -stim_base 4 \
-				-stim_file   5  "motion_All[4]" -stim_label 5 "dL"    -stim_base 5 \
-				-stim_file   6  "motion_All[5]" -stim_label 6 "dP"    -stim_base 6 \
-				-stim_times		  7  ${TF1} "BLOCK(0.5,1)"  -stim_label  7 $L1 \
-				-stim_times		  8  ${TF2} "BLOCK(6,1)"    -stim_label  8 $L2 \
-				-stim_times		  9  ${TF3} "BLOCK(6,1)"    -stim_label  9 $L3 \
-				-stim_times_AM2  10  ${TF4} "dmBLOCK(1)"    -stim_label 10 $L4 \
-				-stim_times_AM2	 11  ${TF5} "dmBLOCK(1)"  	-stim_label 11 $L5 \
-				-stim_times_AM2	 12  ${TF6} "dmBLOCK(1)"	-stim_label 12 $L6 \
-				-stim_file   	 13  $seedTS               	-stim_label 13 Seed \
-				-stim_file   	 14  $CABeh               	-stim_label 14 Int.CA \
-				-stim_file   	 15  $ODBeh               	-stim_label 15 Int.OD \
-				-censor "motion_censor_vector_All.txt[0]" \
-				-bucket $output \
-				-errts errts_$output \
-				-rout -tout \
-				-jobs 6 -GOFORIT 12
-			fi
+			#seedTS=Seed_${i}_d3_timeSeries.1D
+			#CABeh=Seed_${i}_d3_TS_CA.1D
+			#ODBeh=Seed_${i}_d3_TS_OD.1D
 
-		elif [ $j == 4 ]; then
+			#if [ ! -f ${output}+tlrc.HEAD ]; then
 
-			# Compare Body odors (FBO+UBO) to CA (decon4)
-			TF1=${string}_ENI1.txt;		L1=ENI1
-			TF2=${string}_RI.txt; 		L2=RI
-			TF3=${string}_RP.txt; 		L3=RP
-			TF4=${string}_Jit1.txt;		L4=ENI2
-			TF5=${string}_CA.txt;		L5=CA
-			TF6=${string}_MASK.txt; 	L6=Mask
-			TF7=${string}_FUBO.txt; 	L7=FUBO
+				#3dDeconvolve \
+				#-input $input \
+				#-mask Template_mask+tlrc \
+				#-polort A \
+				#-num_stimts 15 \
+				#-stim_file   1  "motion_All[0]" -stim_label 1 "Roll"  -stim_base 1 \
+				#-stim_file   2  "motion_All[1]" -stim_label 2 "Pitch" -stim_base 2 \
+				#-stim_file   3  "motion_All[2]" -stim_label 3 "Yaw"   -stim_base 3 \
+				#-stim_file   4  "motion_All[3]" -stim_label 4 "dS"    -stim_base 4 \
+				#-stim_file   5  "motion_All[4]" -stim_label 5 "dL"    -stim_base 5 \
+				#-stim_file   6  "motion_All[5]" -stim_label 6 "dP"    -stim_base 6 \
+				#-stim_times		  7  ${TF1} "BLOCK(0.5,1)"  -stim_label  7 $L1 \
+				#-stim_times		  8  ${TF2} "BLOCK(6,1)"    -stim_label  8 $L2 \
+				#-stim_times		  9  ${TF3} "BLOCK(6,1)"    -stim_label  9 $L3 \
+				#-stim_times_AM2  10  ${TF4} "dmBLOCK(1)"    -stim_label 10 $L4 \
+				#-stim_times_AM2	 11  ${TF5} "dmBLOCK(1)"  	-stim_label 11 $L5 \
+				#-stim_times_AM2	 12  ${TF6} "dmBLOCK(1)"	-stim_label 12 $L6 \
+				#-stim_file   	 13  $seedTS               	-stim_label 13 Seed \
+				#-stim_file   	 14  $CABeh               	-stim_label 14 Int.CA \
+				#-stim_file   	 15  $ODBeh               	-stim_label 15 Int.OD \
+				#-censor "motion_censor_vector_All.txt[0]" \
+				#-bucket $output \
+				#-errts errts_$output \
+				#-rout -tout \
+				#-jobs 6 -GOFORIT 12
+			#fi
 
-			seedTS=Seed_${i}_d4_timeSeries.1D
-			CABeh=Seed_${i}_d4_TS_CA.1D
-			FUBeh=Seed_${i}_d4_TS_FUBO.1D
+		#elif [ $j == 4 ]; then
 
-			if [ ! -f ${output}+tlrc.HEAD ]; then
+			## Compare Body odors (FBO+UBO) to CA (decon4)
+			#TF1=${string}_ENI1.txt;		L1=ENI1
+			#TF2=${string}_RI.txt; 		L2=RI
+			#TF3=${string}_RP.txt; 		L3=RP
+			#TF4=${string}_Jit1.txt;		L4=ENI2
+			#TF5=${string}_CA.txt;		L5=CA
+			#TF6=${string}_MASK.txt; 	L6=Mask
+			#TF7=${string}_FUBO.txt; 	L7=FUBO
 
-				3dDeconvolve \
-				-input $input \
-				-mask Template_mask+tlrc \
-				-polort A \
-				-num_stimts 16 \
-				-stim_file   1  "motion_All[0]" -stim_label 1 "Roll"  -stim_base 1 \
-				-stim_file   2  "motion_All[1]" -stim_label 2 "Pitch" -stim_base 2 \
-				-stim_file   3  "motion_All[2]" -stim_label 3 "Yaw"   -stim_base 3 \
-				-stim_file   4  "motion_All[3]" -stim_label 4 "dS"    -stim_base 4 \
-				-stim_file   5  "motion_All[4]" -stim_label 5 "dL"    -stim_base 5 \
-				-stim_file   6  "motion_All[5]" -stim_label 6 "dP"    -stim_base 6 \
-				-stim_times		  7  ${TF1} "BLOCK(0.5,1)"  -stim_label  7 $L1 \
-				-stim_times		  8  ${TF2} "BLOCK(6,1)"    -stim_label  8 $L2 \
-				-stim_times		  9  ${TF3} "BLOCK(6,1)"    -stim_label  9 $L3 \
-				-stim_times_AM2  10  ${TF4} "dmBLOCK(1)"    -stim_label 10 $L4 \
-				-stim_times_AM2	 11  ${TF5} "dmBLOCK(1)"  	-stim_label 11 $L5 \
-				-stim_times_AM2  12  ${TF6} "dmBLOCK(1)"    -stim_label 12 $L6 \
-				-stim_times_AM2  13  ${TF7} "dmBLOCK(1)"    -stim_label 13 $L7 \
-				-stim_file   	 14  $seedTS               	-stim_label 14 Seed \
-				-stim_file   	 15  $CABeh               	-stim_label 15 Int.CA \
-				-stim_file   	 16  $FUBeh               	-stim_label 16 Int.FU \
-				-censor "motion_censor_vector_All.txt[0]" \
-				-bucket $output \
-				-errts errts_$output \
-				-rout -tout \
-				-jobs 6 -GOFORIT 12
-			fi
-		fi
-	done
-done
+			#seedTS=Seed_${i}_d4_timeSeries.1D
+			#CABeh=Seed_${i}_d4_TS_CA.1D
+			#FUBeh=Seed_${i}_d4_TS_FUBO.1D
+
+			#if [ ! -f ${output}+tlrc.HEAD ]; then
+
+				#3dDeconvolve \
+				#-input $input \
+				#-mask Template_mask+tlrc \
+				#-polort A \
+				#-num_stimts 16 \
+				#-stim_file   1  "motion_All[0]" -stim_label 1 "Roll"  -stim_base 1 \
+				#-stim_file   2  "motion_All[1]" -stim_label 2 "Pitch" -stim_base 2 \
+				#-stim_file   3  "motion_All[2]" -stim_label 3 "Yaw"   -stim_base 3 \
+				#-stim_file   4  "motion_All[3]" -stim_label 4 "dS"    -stim_base 4 \
+				#-stim_file   5  "motion_All[4]" -stim_label 5 "dL"    -stim_base 5 \
+				#-stim_file   6  "motion_All[5]" -stim_label 6 "dP"    -stim_base 6 \
+				#-stim_times		  7  ${TF1} "BLOCK(0.5,1)"  -stim_label  7 $L1 \
+				#-stim_times		  8  ${TF2} "BLOCK(6,1)"    -stim_label  8 $L2 \
+				#-stim_times		  9  ${TF3} "BLOCK(6,1)"    -stim_label  9 $L3 \
+				#-stim_times_AM2  10  ${TF4} "dmBLOCK(1)"    -stim_label 10 $L4 \
+				#-stim_times_AM2	 11  ${TF5} "dmBLOCK(1)"  	-stim_label 11 $L5 \
+				#-stim_times_AM2  12  ${TF6} "dmBLOCK(1)"    -stim_label 12 $L6 \
+				#-stim_times_AM2  13  ${TF7} "dmBLOCK(1)"    -stim_label 13 $L7 \
+				#-stim_file   	 14  $seedTS               	-stim_label 14 Seed \
+				#-stim_file   	 15  $CABeh               	-stim_label 15 Int.CA \
+				#-stim_file   	 16  $FUBeh               	-stim_label 16 Int.FU \
+				#-censor "motion_censor_vector_All.txt[0]" \
+				#-bucket $output \
+				#-errts errts_$output \
+				#-rout -tout \
+				#-jobs 6 -GOFORIT 12
+			#fi
+		#fi
+	#done
+#done
