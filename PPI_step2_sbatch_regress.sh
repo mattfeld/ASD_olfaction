@@ -37,6 +37,10 @@ export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 #			e.g. deconNum=(1 2 1) means one decon from first phase, two from second, etc.
 #		Note - A value must be entered for each phase, even if no decon is desired
 #			e.g. deconNum=(0 1 0) for one only decon from second phase, and no others
+#
+# 5) 04/17/19 - This is has been adapted from our Task scripts to be used for the
+#		AutismOlfactory PPI pipeline.
+#		-nate
 
 
 
@@ -163,6 +167,9 @@ fi
 
 
 ### Function - write deconvolution script
+#
+# this is a lightly adjusted version of our standard decon function
+
 GenDecon (){
 
 	# assign vars for readability
