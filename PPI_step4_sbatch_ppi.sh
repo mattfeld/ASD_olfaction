@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#SBATCH --time=05:00:00   # walltime
-#SBATCH --ntasks=4   # number of processor cores (i.e. tasks)
+#SBATCH --time=20:00:00   # walltime
+#SBATCH --ntasks=6   # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
-#SBATCH --mem-per-cpu=4gb   # memory per CPU core
+#SBATCH --mem-per-cpu=8gb   # memory per CPU core
 #SBATCH -J "PPI4"   # job name
 
 # Compatibility variables for PBS. Delete if not needed.
@@ -22,56 +22,58 @@ export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 
 ### Notes:
 #
-# This script will do basic pre-processing and deconvolution of the data
-# in preparation for the PPI analysis.
-#
-# Each major step (###) is annotated, and some additional notes (#) are left as well.
+# This script will extract the behavioral timeseries, and generate
+# correlation matrices for each seed.
 
 
 
 
 ### --- Set up --- ###
+#
+# This section will orient the rest of the script. Aside from the
+# contrast matrices section (parts of step1,2) this is the only
+# section that needs to be updated. Future versions may be written
+# more robustly to minimize the need for research input.
 
 
-## General Variables
+# General Variables
 workDir=~/compute/AutismOlfactory
 tempDir=${workDir}/Template
 scriptDir=${workDir}/Scripts
 timingDir=${workDir}/derivatives/TimingFiles
 
 
-## Subject Variables
+# Subject Variables
 subj=$1
 string=${subj#*-}
 ppiDir=${workDir}/derivatives/${subj}
+cleanMode=$2
 
 
-## Deconvolution variables
-deconList=(FUMC FUMvC FUvC)												# Prefix of decons run in step2
+## Deconvolution variables												# Prefix of decons run in step2
+deconList=(FUMC FUMvC FUvC)
 
-# For txt timing files
-txtFUMC=(${string}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)				# Same as in step2
+# For txt timing files													# Same as in step2
+txtFUMC=(${string}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)
 txtFUMvC=(${string}_{ENI1,RI,RP,Jit1,CA,Odor}.txt)
 txtFUvC=(${string}_{ENI1,RI,RP,Jit1,CA,MASK,FUBO}.txt)
 
-# Label beh sub-bricks, per decon
-namFUMC=(ENI RI RP Jit MASK FBO UBO CA)									# Same as in step2
+# Label beh sub-bricks, per decon										# Same as in step2
+namFUMC=(ENI RI RP Jit MASK FBO UBO CA)
 namFUMvC=(ENI RI RP Jit CA Odor)
 namFUvC=(ENI RI RP Jit CA MASK FUBO)
 
 
-## PPI variables
-behInterest=(MASK FBO UBO CA Odor)										# All desirable sub-brick labels from step2 output
+## PPI variables														# All desirable sub-brick labels from step2 output
+behInterest=(MASK FBO UBO CA Odor)
 
 arrFUMC=(Mask FBO UBO CA)												# Behaviors to be extracted from each TS, per decon
 arrFUMvC=(CA Odor)
 arrFUvC=(CA Mask FUBO)
 
-seedCoord=("-27 -14 -22")												# Seed coordinates
-seedName=(LHC)															# Seed prefixes
+seedCoord=("-29 1 -18" "27 2 -21" "20 -3 -14" "-23 -4 -13" "46 44 23" "20 -81 41" "-32 -76 39" "-42 -75 36" "-66 -12 25" "57 -54 -12")												# Seed coordinates
+seedName=(LPF RPF 1 2 5 7 8a 8b 9 10)									# Seed prefix
 seedLen=${#seedCoord[@]}
-
-
 
 
 
@@ -89,7 +91,6 @@ MatchString () {
 	done
 	return 1
 }
-
 
 
 # Write deconvolution script
@@ -170,9 +171,6 @@ GenDecon (){
     -errts ${h_out}_errts \
     -rout -tout" > ${h_out}_deconv.sh
 }
-
-
-
 
 
 
@@ -455,7 +453,7 @@ done
 
 
 
-### --- Deconvolve --- ###
+### --- Step 3: Deconvolve --- ###
 #
 # A deconvolution script (foo_deconv.sh) is generated and ran for
 # each planned deconvolution.
@@ -533,3 +531,18 @@ c=0; while [ $c -lt $phaseLen ]; do
 	done
 	let c=$[$c+1]
 done
+
+
+
+
+# clean
+if [ $cleanMode == 1 ]; then
+	rm tmp_*
+	rm -r a*
+	rm final_mask_{CSF,GM}*
+	rm *corr_brain*
+	rm *gmean_errts*
+	rm *volreg*
+	rm Temp*
+	rm full_mask.*
+fi

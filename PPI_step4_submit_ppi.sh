@@ -13,13 +13,14 @@ outDir=${slurmDir}/PPI4_${time}
 mkdir -p $outDir
 cd $workDir
 
-#for i in sub*; do
-for i in sub-1048; do
+for i in sub*; do
+
+	[ $i == sub-1048 ]; clean=$?
 
     sbatch \
     -o ${outDir}/output_PPI4_${i}.txt \
     -e ${outDir}/error_PPI4_${i}.txt \
-    ${scriptDir}/PPI_step4_sbatch_ppi.sh $i
+    ${scriptDir}/PPI_step4_sbatch_ppi.sh $i $clean
 
     sleep 1
 done

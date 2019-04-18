@@ -27,7 +27,7 @@ parDir=~/compute/AutismOlfactory
 workDir=${parDir}/derivatives
 grpDir=${parDir}/Analyses/grpAnalysis
 refDir=${workDir}/sub-1048
-maxP=0.1								# max percentage of censored TRs allowed (0.1 = 10%)
+maxP=0.3								# max percentage of censored TRs allowed (0.1 = 10%)
 
 mkdir -p $grpDir
 

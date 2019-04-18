@@ -21,7 +21,7 @@ for i in sub*; do
     sbatch \
     -o ${outDir}/output_PPI1_${i}.txt \
     -e ${outDir}/error_PPI1_${i}.txt \
-    ${scriptDir}/Task_step1_sbatch_preproc.sh $i
+    ${scriptDir}/PPI_step1_sbatch_preproc.sh $i
 
     sleep 1
 done
