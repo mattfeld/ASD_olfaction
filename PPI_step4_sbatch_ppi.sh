@@ -139,12 +139,15 @@ GenDecon (){
 
 	cc=0; while [ $cc -lt ${#txt[@]} ]; do
 
-		if [ ${txt[$cc]} == ${subjHold}_ENI1.txt ]; then
+		if [ ${txt[$cc]} == ${string}_ENI1.txt ]; then
 			stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(0.5,1)\" -stim_label $x beh_${nam[$cc]} "
-		elif [ ${txt[$cc]} == ${subjHold}_RI.txt ] || [ ${txt[$cc]} == ${subjHold}_RP.txt ]; then
+
+		elif [ ${txt[$cc]} == ${string}_RI.txt ] || [ ${txt[$cc]} == ${string}_RP.txt ]; then
 			stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(6,1)\" -stim_label $x beh_${nam[$cc]} "
+
 		elif [[ ${nam[$cc]} == Int_* ]] || [[ ${nam[$cc]} == Seed* ]]; then
 			stimBeh+="-stim_times $x ${txt[$cc]} -stim_label $x ${nam[$cc]} "
+
 		else
 			stimBeh+="-stim_times_AM2 $x timing_files/${txt[$cc]} \"dmBLOCK(1)\" -stim_label $x beh_${nam[$cc]} "
 		fi
@@ -229,11 +232,15 @@ TR=`3dinfo -tr $ref`
 #
 # Create a clean version of each deconvolution by remove effects of no interest.
 # Simulate an ideal BOLD response, and generate behavioral contrasts.
+#
+# The construction of behavior vectors is written for the
+# AutismOlfactory dataset, and won't work for other studies
 
 
 ### Make clean data
 for i in ${deconList[@]}; do
 	if [ ! -f tmp_CleanData_${i}+tlrc.HEAD ]; then
+
 
 		# Determine effects of no interest - those not in $behInterest
 		hold=`grep ColumnLabels X.${i}.xmat.1D | sed 's/\#//g' | sed 's/\;//g'`
@@ -263,6 +270,15 @@ for i in ${deconList[@]}; do
 		# remove unwanted regressors from combined run to produce Clean Data
 		3dTcat -prefix tmp_all_runs_${i} -tr $TR $input
 		3dcalc -a tmp_all_runs_${i}+tlrc -b tmp_effNoInt_AO_${i}+tlrc -expr 'a-b' -prefix tmp_CleanData_${i}
+
+
+		# check
+		if [ ! -f tmp_CleanData_${i}+tlrc.HEAD ]; then
+			echo >&2
+			echo "Creating CleanData failed. Exit 1." >&2
+			echo >&2
+			exit 1
+		fi
 	fi
 done
 
@@ -335,6 +351,17 @@ if [ ! -f Beh_Odor_contrast.1D ]; then
 fi
 
 
+# check
+for test in Beh_{FBO,UBO,FUBO,Mask,CA,Odor}_contrast.1D; do
+	if [ ! -f $test ]; then
+		echo >&2
+		echo "Creating $test failed. Exit 2." >&2
+		echo >&2
+		exit 2
+	fi
+done
+
+
 
 
 ### --- Step 2: extract seed time series --- ###
@@ -396,11 +423,14 @@ done
 ### Extract behavior TS from appropriate deconv from e/seed
 for i in ${deconList[@]}; do
 
+
+	# pull nested array info
 	conList=($(eval echo \${arr${i}[@]}))
 
 	for j in ${conList[@]}; do
 		for k in ${seedName[@]}; do
 			if [ ! -f Seed_${k}_${i}_TS_${j}.1D ]; then
+
 
 				# Extract seed beh neural timeseries, resample back to 2s (LRes)
 				1deval -a tmp_HRes_Seed_${k}_${i}_neural.1D -b Beh_${j}_contrast.1D -expr 'a*b' > tmp_Seed_${k}_${i}_neural_${j}_beh.1D
@@ -408,9 +438,19 @@ for i in ${deconList[@]}; do
 				ConvertDset -o_1D -input tmp_LRes_Seed_${k}_${i}_neural_${j}.txt -prefix tmp_LRes_Seed_${k}_${i}_neural_${j}
 				mv tmp_LRes_Seed_${k}_${i}_neural_${j}.1D.dset tmp_LRes_Seed_${k}_${i}_neural_${j}.1D
 
+
 				# add BOLD back to TS
 				num=`cat tmp_Trans_Seed_${k}_${i}_neural.1D | wc -l`
 				waver -GAM -peak 1 -dt $TR -input tmp_LRes_Seed_${k}_${i}_neural_${j}.1D -numout $num > Seed_${k}_${i}_TS_${j}.1D
+
+
+				# check
+				if [ ! -f Seed_${k}_${i}_TS_${j}.1D ]; then
+					echo >&2
+					echo "Creating Seed_${k}_${i}_TS_${j}.1D failed. Exit 3." >&2
+					echo >&2
+					exit 3
+				fi
 			fi
 		done
 	done
@@ -464,6 +504,14 @@ c=0; while [ $c -lt $phaseLen ]; do
 			fi
 			source PPI_${i}_deconv.sh
 
+
+			# check
+			if [ ! -f Seed_${k}_${i}_TS_${j}.1D ]; then
+				echo >&2
+				echo "Creating Seed_${k}_${i}_TS_${j}.1D failed. Exit 3." >&2
+				echo >&2
+				exit 3
+			fi
 		done
 	done
 	let c=$[$c+1]
