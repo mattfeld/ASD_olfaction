@@ -47,36 +47,28 @@ ppiDir=${workDir}/derivatives/${subj}
 
 
 ## Deconvolution variables
-deconList=(FUMC FUMvC FUvC)
-
-#txtFile=1														# whether timing files are in txt format (1) or 1D (0)
-#txtTime=0														# if txt file has block duration (1:3) for pmBLOCK (1=on)
-runDecons=1														# toggle for running reml scripts and post hoc (1=on) or just writing scripts (0)
-
-deconNum=(3)													# See Note 4 above
-#deconPref=(FUMC FUMvC FUvC)										# array of prefix for each planned decon (length must equal sum of $deconNum)
-#deconLen=(3)													# trial duration for each Phase (argument for BLOCK in deconvolution). Use when $txtFile=0 or $txtTime=0
+deconList=(FUMC FUMvC FUvC)												# Prefix of decons run in step2
 
 # For txt timing files
-txtFUMC=(${string}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)
+txtFUMC=(${string}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)				# Same as in step2
 txtFUMvC=(${string}_{ENI1,RI,RP,Jit1,CA,Odor}.txt)
 txtFUvC=(${string}_{ENI1,RI,RP,Jit1,CA,MASK,FUBO}.txt)
 
 # Label beh sub-bricks, per decon
-namFUMC=(ENI RI RP Jit MASK FBO UBO CA)									# "Foo" of namFoo matches a $deconPref value, one string per timing file (e.g. deconPref=(SpT1); namSpT1=(Hit CR Miss FA))
+namFUMC=(ENI RI RP Jit MASK FBO UBO CA)									# Same as in step2
 namFUMvC=(ENI RI RP Jit CA Odor)
 namFUvC=(ENI RI RP Jit CA MASK FUBO)
 
 
 ## PPI variables
-behInterest=(MASK FBO UBO CA Odor)
+behInterest=(MASK FBO UBO CA Odor)										# All desirable sub-brick labels from step2 output
 
-arrFUMC=(Mask FBO UBO CA)
+arrFUMC=(Mask FBO UBO CA)												# Behaviors to be extracted from each TS, per decon
 arrFUMvC=(CA Odor)
 arrFUvC=(CA Mask FUBO)
 
-seedCoord=("-27 -14 -22")
-seedName=(LHC)
+seedCoord=("-27 -14 -22")												# Seed coordinates
+seedName=(LHC)															# Seed prefixes
 seedLen=${#seedCoord[@]}
 
 
@@ -103,8 +95,8 @@ MatchString () {
 # Write deconvolution script
 #
 # This is a stripped version of the function in PPI_step2.
-# It has been adjusted for use with the PPI
-
+# It has been adjusted for use with the PPI, and written
+# Specifically for the AutismOlfactory study
 
 GenDecon (){
 
@@ -368,11 +360,15 @@ done
 #
 # Construct seeds, and extract mean time series (TS) from Clean Data.
 # TS is deconvolved for BOLD response, rendering "neural" TS.
+#
 # Functional TR = 2000 ms, stimulus duration is measured in 100 ms,
 # so the TS is upsampled in order to extract "neural" TS associated
 # w/the behavior.
+#
 # Then the TS is downsampled and reconvolved with BOLD to generate
 # a task-associated BOLD TS.
+#
+# Much of this is specific to the AutismOlfactory study
 
 
 # Get seed TS from e/deconvolution
@@ -522,7 +518,7 @@ c=0; while [ $c -lt $phaseLen ]; do
 
 			# run REML script
 			if [ ! -f PPI_${i}_${j}_stats_REML+tlrc.HEAD ]; then
-				tcsh -x PPI_${i}_${j}_stats.REML_cmd ${phaseArr[$c]}_WMe_rall+tlrc
+				tcsh -x PPI_${i}_${j}_stats.REML_cmd -dsort ${phaseArr[$c]}_WMe_rall+tlrc
 			fi
 
 
