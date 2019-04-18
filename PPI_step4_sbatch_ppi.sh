@@ -459,10 +459,10 @@ c=0; while [ $c -lt $phaseLen ]; do
 
 
 			# run script
-			if [ -f ${out}_stats.REML_cmd ]; then
-				rm ${out}_stats.REML_cmd
+			if [ -f PPI_${i}_stats.REML_cmd ]; then
+				rm PPI_${i}_stats.REML_cmd
 			fi
-			source ${out}_deconv.sh
+			source PPI_${i}_deconv.sh
 
 		done
 	done
