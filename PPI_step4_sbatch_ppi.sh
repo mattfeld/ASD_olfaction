@@ -55,7 +55,7 @@ runDecons=1														# toggle for running reml scripts and post hoc (1=on) o
 
 deconNum=(3)													# See Note 4 above
 #deconPref=(FUMC FUMvC FUvC)										# array of prefix for each planned decon (length must equal sum of $deconNum)
-deconLen=(3)													# trial duration for each Phase (argument for BLOCK in deconvolution). Use when $txtFile=0 or $txtTime=0
+#deconLen=(3)													# trial duration for each Phase (argument for BLOCK in deconvolution). Use when $txtFile=0 or $txtTime=0
 
 # For txt timing files
 txtFUMC=(${string}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)
@@ -105,47 +105,20 @@ MatchString () {
 # This is a stripped version of the function in PPI_step2.
 # It has been adjusted for use with the PPI
 
+
 GenDecon (){
 
 	# assign vars for readability
-	#if [ $txtFile == 1 ]; then
-		#if [ $txtTime == 1 ]; then
+	local h_phase=$1
+	local h_block=$2
+    local h_input=$3
+    local h_out=$4
+    local h_len=$5
 
-			#local h_phase=$1
-			#local h_block=$2
-		    #local h_input=$3
-		    #local h_out=$4
-		    #local h_len=$5
-
-		    #shift 5
-		    #local h_arr=( "$@" )
-		    #local nam=(${h_arr[@]:0:$h_len})
-		    #local txt=(${h_arr[@]:$h_len})
-
-		#else
-			local h_phase=$1
-			local h_block=$2
-		    local h_input=$3
-		    local h_out=$4
-		    local h_len=$5
-		    local h_trlen=$6
-
-		    shift 6
-		    local h_arr=( "$@" )
-		    local nam=(${h_arr[@]:0:$h_len})
-		    local txt=(${h_arr[@]:$h_len})
-		#fi
-	#else
-		#local h_phase=$1
-		#local h_block=$2
-		#local h_tfile=$3
-		#local h_trlen=$4
-	    #local h_input=$5
-	    #local h_out=$6
-
-	    #shift 6
-	    #local nam=( "$@" )
-    #fi
+    shift 5
+    local h_arr=( "$@" )
+    local nam=(${h_arr[@]:0:$h_len})
+    local txt=(${h_arr[@]:$h_len})
 
 
 	# build motion list
@@ -164,47 +137,21 @@ GenDecon (){
 	## build behavior list
 	unset stimBeh
 
+	cc=0; while [ $cc -lt ${#txt[@]} ]; do
 
-	# if txt files supplied
-	#if [ $txtFile == 1 ]; then
-		#if [ $txtTime == 1 ]; then
-			#cc=0; while [ $cc -lt ${#txt[@]} ]; do
-				#stimBeh+="-stim_times_AM1 $x timing_files/${txt[$cc]} \"dmBLOCK(1)\" -stim_label $x beh_${nam[$cc]} "
-				#let x=$[$x+1]
-				#let cc=$[$cc+1]
-			#done
-		#else
-			cc=0; while [ $cc -lt ${#txt[@]} ]; do
+		if [ ${txt[$cc]} == ${subjHold}_ENI1.txt ]; then
+			stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(0.5,1)\" -stim_label $x beh_${nam[$cc]} "
+		elif [ ${txt[$cc]} == ${subjHold}_RI.txt ] || [ ${txt[$cc]} == ${subjHold}_RP.txt ]; then
+			stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(6,1)\" -stim_label $x beh_${nam[$cc]} "
+		elif [[ ${nam[$cc]} == Int_* ]] || [[ ${nam[$cc]} == Seed* ]]; then
+			stimBeh+="-stim_times $x ${txt[$cc]} -stim_label $x ${nam[$cc]} "
+		else
+			stimBeh+="-stim_times_AM2 $x timing_files/${txt[$cc]} \"dmBLOCK(1)\" -stim_label $x beh_${nam[$cc]} "
+		fi
 
-				###### Patched here for AO study
-				if [ ${txt[$cc]} == ${subjHold}_ENI1.txt ]; then
-					stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(0.5,1)\" -stim_label $x beh_${nam[$cc]} "
-				elif [ ${txt[$cc]} == ${subjHold}_RI.txt ] || [ ${txt[$cc]} == ${subjHold}_RP.txt ]; then
-					stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(6,1)\" -stim_label $x beh_${nam[$cc]} "
-				else
-					stimBeh+="-stim_times_AM2 $x timing_files/${txt[$cc]} \"dmBLOCK(1)\" -stim_label $x beh_${nam[$cc]} "
-				fi
-
-				#stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(${h_trlen},1)\" -stim_label $x beh_${nam[$cc]} "
-				let x=$[$x+1]
-				let cc=$[$cc+1]
-			done
-		#fi
-
-	# if 1D files supplies
-	#else
-	    #tBeh=`ls timing_files/${h_tfile}* | wc -l`
-	    #for ((t=1; t<=$tBeh; t++)); do
-	        #stimBeh+="-stim_times $x timing_files/${h_tfile}.0${t}.1D \"BLOCK(${h_trlen},1)\" -stim_label $x beh_${nam[$(($t-1))]} "
-	        #let x=$[$x+1]
-	    #done
-    #fi
-
-
-
-	#### add section to build Seed TS input
-
-
+		let x=$[$x+1]
+		let cc=$[$cc+1]
+	done
 
 
 	# num_stimts
@@ -225,8 +172,8 @@ GenDecon (){
     -xjpeg X.${h_out}.jpg \
     -x1D_uncensored X.${h_out}.nocensor.xmat.1D \
     -bucket ${h_out}_stats \
-    -cbucket ${h_out}_cbucket \
-    -errts ${h_out}_errts" > ${h_out}_deconv.sh
+    -errts ${h_out}_errts \
+    -rout -tout" > ${h_out}_deconv.sh
 }
 
 
@@ -472,8 +419,6 @@ done
 
 
 
-
-
 ### --- Deconvolve --- ###
 #
 # A deconvolution script (foo_deconv.sh) is generated and ran for
@@ -483,76 +428,43 @@ done
 # has been adjusted for the AutismOlfactory PPI
 
 
-c=0; count=0; while [ $c -lt $phaseLen ]; do
+# for each conducted decon & seed
+c=0; while [ $c -lt $phaseLen ]; do
+	for i in ${deconList[0]}; do
+		for j in ${seedName[0]}; do
 
 
-	# for each planned decon
-	numD=${deconNum[$c]}
-	for(( i=1; i<=$numD; i++)); do
+			# extract nested array info
+			holdName=($(eval echo \${nam${i}[@]}))
+			holdTxt=($(eval echo \${txt${i}[@]}))
 
 
-		### Patched here - submit decon for e/seed
-		for j in ${seedName[@]}; do
+			# append holdName/Txt to holds Seed_TS.1D info
+			holdName+=(Seed_${j})
+			holdTxt+=(Seed_${j}_${i}_timeSeries.1D)
 
-			phase=${phaseArr[$c]}
-			seed=$j
+			conList=($(eval echo \${arr${i}[@]}))
 
-			out=${deconPref[$count]}
-			outFinal=FINAL_${deconPref[$count]}_$seed
+			for k in ${conList[@]}; do
+				if [ -f Seed_${j}_${i}_TS_${k}.1D ]; then
 
-
-
-		# write script
-		#if [ $txtFile == 1 ]; then
-
-
-			holdName=($(eval echo \${nam${out}[@]}))
-			holdTxt=$(eval echo \${txt${out}[@]})
-
-
-
-			#### update holdName/Txt to holds Seed_TS.1D info - keep contrast, decon straight
-			conList=($(eval echo \${arr${out}[@]}))
-			hNum=${#holdName[@]}
-
-			x=$hNum; for xx in ${conList[@]}; do
-				if [ -f Seed_${j}_${out}_TS_${xx}.1D ]; then
-
-					holdName[$x]=Seed_${j}_${out}_TS_${xx}.1D
-					holdTxt[$x]=$xx
-
-					let x=$[$x+1]
+					holdTxt+=(Seed_${j}_${i}_TS_${k}.1D)
+					holdName+=(Int_$k)
 				fi
 			done
 
 
+			# generate script
+			GenDecon ${phaseArr[$c]} ${blockArr[$c]} "$input" PPI_$i ${#holdName[@]} ${holdName[@]} ${holdTxt[@]}
 
 
-			#if [ $txtTime == 1 ]; then
-				#GenDecon $phase ${blockArr[$c]} "$input" $out ${#holdName[@]} ${holdName[@]} $holdTxt
-			#else
+			# run script
+			if [ -f ${out}_stats.REML_cmd ]; then
+				rm ${out}_stats.REML_cmd
+			fi
+			source ${out}_deconv.sh
 
-
-
-				#### add argument to GenDecon submission for seed TS
-				#GenDecon $phase ${blockArr[$c]} "$input" $out ${#holdName[@]} ${deconLen[$c]} ${holdName[@]} $holdTxt
-				GenDecon $phase ${blockArr[$c]} "$input" $out ${#holdName[@]} ${deconLen[$c]} ${holdName[@]} $j $holdTxt
-
-
-			#fi
-		#else
-			#holdName=($(eval echo \${nam${out}[@]}))
-			#GenDecon $phase ${blockArr[$c]} ${deconTiming[$count]} ${deconLen[$c]} "$input" $out ${#holdName[@]}
-		#fi
-
-		# run script
-		if [ -f ${out}_stats.REML_cmd ]; then
-			rm ${out}_stats.REML_cmd
-		fi
-		source ${out}_deconv.sh
-
-		count=$(($count+1))
+		done
 	done
-
 	let c=$[$c+1]
 done
