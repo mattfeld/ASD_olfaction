@@ -146,7 +146,7 @@ GenDecon (){
 			stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(6,1)\" -stim_label $x beh_${nam[$cc]} "
 
 		elif [[ ${nam[$cc]} == Int_* ]] || [[ ${nam[$cc]} == Seed* ]]; then
-			stimBeh+="-stim_times $x ${txt[$cc]} -stim_label $x ${nam[$cc]} "
+			stimBeh+="-stim_file $x ${txt[$cc]} -stim_label $x ${nam[$cc]} "
 
 		else
 			stimBeh+="-stim_times_AM2 $x timing_files/${txt[$cc]} \"dmBLOCK(1)\" -stim_label $x beh_${nam[$cc]} "
@@ -465,13 +465,15 @@ done
 # each planned deconvolution.
 #
 # This is a stripped version of our normal GenDecon call syntax, and
-# has been adjusted for the AutismOlfactory PPI
+# has been adjusted for the AutismOlfactory PPI.
+#
+# REML will be run to extract correlation matrix.
 
 
 # for each conducted decon & seed
 c=0; while [ $c -lt $phaseLen ]; do
-	for i in ${deconList[0]}; do
-		for j in ${seedName[0]}; do
+	for i in ${deconList[@]}; do
+		for j in ${seedName[@]}; do
 
 
 			# extract nested array info
@@ -494,23 +496,42 @@ c=0; while [ $c -lt $phaseLen ]; do
 			done
 
 
-			# generate script
-			GenDecon ${phaseArr[$c]} ${blockArr[$c]} "$input" PPI_$i ${#holdName[@]} ${holdName[@]} ${holdTxt[@]}
+			if [ ! -f X.PPI_${i}_${j}.xmat.1D ]; then
 
 
-			# run script
-			if [ -f PPI_${i}_stats.REML_cmd ]; then
-				rm PPI_${i}_stats.REML_cmd
+				# generate script
+				GenDecon ${phaseArr[$c]} ${blockArr[$c]} "$input" PPI_${i}_$j ${#holdName[@]} ${holdName[@]} ${holdTxt[@]}
+
+
+				# run script
+				if [ -f PPI_${i}_${j}_stats.REML_cmd ]; then
+					rm PPI_${i}_${j}_stats.REML_cmd
+				fi
+				source PPI_${i}_${j}_deconv.sh
+
+
+				# check
+				if [ ! -f X.PPI_${i}_${j}.xmat.1D ]; then
+					echo >&2
+					echo "Creating Decon failed for ${i}_${j}. Exit 4." >&2
+					echo >&2
+					exit 4
+				fi
 			fi
-			source PPI_${i}_deconv.sh
 
 
-			# check
-			if [ ! -f Seed_${k}_${i}_TS_${j}.1D ]; then
-				echo >&2
-				echo "Creating Seed_${k}_${i}_TS_${j}.1D failed. Exit 3." >&2
-				echo >&2
-				exit 3
+			# run REML script
+			if [ ! -f PPI_${i}_${j}_stats_REML+tlrc.HEAD ]; then
+				tcsh -x PPI_${i}_${j}_stats.REML_cmd ${phaseArr[$c]}_WMe_rall+tlrc
+			fi
+
+
+			# kill if REMl failed
+			if [ ! -f PPI_${i}_${j}_stats_REML+tlrc.HEAD ]; then
+				echo "" >&2
+				echo "REML failed on ${i}_${j}. Exit 5." >&2
+				echo "" >&2
+				exit 5
 			fi
 		done
 	done
