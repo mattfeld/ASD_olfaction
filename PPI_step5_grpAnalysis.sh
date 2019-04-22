@@ -71,10 +71,11 @@ namC=(UBO x FUBO)
 namD=(CA x x)
 
 
-# MVM vars/arrs
+### MVM vars/arrs
 blurM=2														# blur multiplier, float/int
 bsArr=(Aut Con)												# Bx-subject variables (groups)
 
+# bs group
 cd $workDir
 > ${outDir}/Group_list.txt
 
@@ -88,6 +89,13 @@ for i in s*; do
 done
 bsList=${outDir}/Group_list.txt								# Needed when bsArr > 1. List where col1 = subj identifier, col2 = group membership (e.g. s1295 Con)
 
+
+# covariates
+covHead=(`head -n 1 Cov_list.txt`)
+covSubj=(`tail -n +2 Cov_list.txt | awk '{print $1}'`)
+covIUS=(`tail -n +2 Cov_list.txt | awk '{print $2}'`)
+covAQ=(`tail -n +2 Cov_list.txt | awk '{print $3}'`)
+covRBQ=(`tail -n +2 Cov_list.txt | awk '{print $4}'`)
 
 
 
