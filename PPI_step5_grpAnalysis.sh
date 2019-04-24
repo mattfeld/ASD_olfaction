@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#SBATCH --time=40:00:00   # walltime
-#SBATCH --ntasks=10   # number of processor cores (i.e. tasks)
+#SBATCH --time=05:00:00   # walltime
+#SBATCH --ntasks=2   # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
-#SBATCH --mem-per-cpu=10gb   # memory per CPU core
+#SBATCH --mem-per-cpu=4gb   # memory per CPU core
 #SBATCH -J "PPI5"   # job name
 
 # Compatibility variables for PBS. Delete if not needed.
@@ -51,7 +51,7 @@ mask=Intersection_GM_mask+tlrc								# this will be made, just specify name for
 
 
 # grpAnalysis
-runIt=0														# whether ETAC/MVM scripts actually run (and not just written) (1)
+runIt=1														# whether ETAC/MVM scripts actually run (and not just written) (1)
 thr=0.3														# thresh value for Group_EPI_mask, ref Group_EPI_mean
 
 compList=(FUMC FUMvC FUvC)									# matches decon prefixes, and will be prefix of output files
@@ -96,8 +96,8 @@ bsArr=(Aut Con)												# Bx-subject variables (groups)
 #bsList=${outDir}/Group_list.txt								# Needed when bsArr > 1. List where col1 = subj identifier, col2 = group membership (e.g. s1295 Con)
 
 
-# group, covariates
-covHead=(`head -n 1 ${outDir}/Cov_list.txt`)
+# covariates and group membership
+# covHead=(`head -n 1 ${outDir}/Cov_list.txt`)
 covSubj=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $1}'`)
 covGroup=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $2}'`)
 covSnif=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $3}'`)
@@ -144,14 +144,14 @@ MakePerm () {
 ### --- Set up --- ###
 
 # make permutation lists
-arr=(`MakePerm $listX`)
-alpha=(`echo {A..Z}`)
-wsList=(${alpha[@]:0:${#listX}})
+# arr=(`MakePerm $listX`)
+# alpha=(`echo {A..Z}`)
+# wsList=(${alpha[@]:0:${#listX}})
 
-for ((a=0; a<${#bsArr[@]}; a++)); do
-	tmpList+=$a
-done
-arrBS=(`MakePerm $tmpList`)
+# for ((a=0; a<${#bsArr[@]}; a++)); do
+# 	tmpList+=$a
+# done
+# arrBS=(`MakePerm $tmpList`)
 
 
 # make ppi list
@@ -159,7 +159,7 @@ cd ${refFile%run*}
 
 c=0; for i in PPI*stats_REML+tlrc.HEAD; do
 
-	ppiList[$c]=${i$.*}
+	ppiList[$c]=${i%.*}
 	let c=$[$c+1]
 done
 
@@ -295,6 +295,13 @@ arrCount=0; while [ $arrCount -lt $compLen ]; do
 			3dClustSim -mask $mask -LOTS -iter 10000 -acf $xA $xB $xC > ACF_MC_${pref}.txt
 			rm tmp
 		fi
+
+		if [ ! -s ACF_MC_${pref}.txt ]; then
+			echo >&2
+			echo "3dClustSim or 3dFWHMx failed. Exit 6." >&2
+			echo >&2
+			exit 6
+		fi
 	fi
 	let arrCount=$[$arrCount+1]
 done
@@ -306,8 +313,9 @@ done
 for i in ${ppiList[@]}; do
 
 	scan=$i
-	tmp=${i%_errts*}
-	decon=${tmp##*_}
+	tmp=${i%_stats*}
+	tmp1=${tmp%_*}
+	decon=${tmp1#*_}
 
 
 	# determine behvaiors, sub-bricks
@@ -321,7 +329,7 @@ for i in ${ppiList[@]}; do
 	for j in ${!arrName[@]}; do
 
 		num=$(($j+1))
-		conMatrix+="-gltLabel $num G.${arrName[$j]} -gltCode $num 'Group: 1*Con -1*Aut Stim: 1*${${arrName[$j]} Snif: SPA: "
+		conMatrix+="-gltLabel $num G.${arrName[$j]} -gltCode $num 'Group: 1*Con -1*Aut Stim: 1*${arrName[$j]} Snif: SPA:' "
 	done
 	numGlt=$num
 
@@ -332,17 +340,17 @@ for i in ${ppiList[@]}; do
 	unset dataMatrix
 
 	# loop through covariates
-	c=0; while [ $c -lt ${#covSubj[@]} ]; do     #### add a part to replace missing values w/mean of column
+	c=0; while [ $c -lt ${#covSubj[@]} ]; do
 
 		subj=sub-${covSubj[$c]}
-		if [ -f ${workDir}/${subj}/${i}.HEAD ]; then
+		if [ -f ${workDir}/${subj}/${scan}.HEAD ]; then
 
 			MatchString "$subj" "${arrRemove[@]}"
 			if [ $? == 1 ]; then
 
 
 				# loop through behaviors/sub-bricks
-				d=0; while [ $d -lt ${#arrName[@]} ]; then
+				d=0; while [ $d -lt ${#arrName[@]} ]; do
 
 					dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covSnif[$c]} ${covSPA[$c]} ${workDir}/${subj}/\"${i}[${arrBrick[$d]}]\" "
 					let d=$[$d+1]
