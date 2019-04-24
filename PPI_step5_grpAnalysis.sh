@@ -1,9 +1,9 @@
 #!/bin/bash
 
-#SBATCH --time=05:00:00   # walltime
-#SBATCH --ntasks=2   # number of processor cores (i.e. tasks)
+#SBATCH --time=20:00:00   # walltime
+#SBATCH --ntasks=10   # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
-#SBATCH --mem-per-cpu=4gb   # memory per CPU core
+#SBATCH --mem-per-cpu=6gb   # memory per CPU core
 #SBATCH -J "PPI5"   # job name
 
 # Compatibility variables for PBS. Delete if not needed.
@@ -207,9 +207,9 @@ if [ $runIt == 1 ]; then
 
 	if [ ! -f ${mask}.HEAD ]; then
 		echo >&2
-		echo "Could not construct $mask. Exit 5" >&2
+		echo "Could not construct $mask. Exit 1" >&2
 		echo >&2
-		exit 5
+		exit 1
 	fi
 
 
@@ -298,9 +298,9 @@ arrCount=0; while [ $arrCount -lt $compLen ]; do
 
 		if [ ! -s ACF_MC_${pref}.txt ]; then
 			echo >&2
-			echo "3dClustSim or 3dFWHMx failed. Exit 6." >&2
+			echo "3dClustSim or 3dFWHMx failed. Exit 2." >&2
 			echo >&2
-			exit 6
+			exit 2
 		fi
 	fi
 	let arrCount=$[$arrCount+1]
@@ -348,7 +348,6 @@ for i in ${ppiList[@]}; do
 			MatchString "$subj" "${arrRemove[@]}"
 			if [ $? == 1 ]; then
 
-
 				# loop through behaviors/sub-bricks
 				d=0; while [ $d -lt ${#arrName[@]} ]; do
 
@@ -363,9 +362,11 @@ for i in ${ppiList[@]}; do
 
 	# generate script
 	tmp2=${i#*_}
+	finalOut=${tmp2%_stat*}
+
 	echo " module load r/3/5
 
-	3dMVM -prefix MVM_${tmp2%_stat*} -jobs 10 -mask $mask \\
+	3dMVM -prefix MVM_${finalOut} -jobs 10 -mask $mask \\
 	-bsVars 'Group' \\
 	-wsVars 'Stim' \\
 	-qVars 'Snif,SPA' \\
@@ -373,132 +374,22 @@ for i in ${ppiList[@]}; do
 	$conMatrix \\
 	-dataTable \\
 	$dataMatrixHead \\
-	$dataMatrix" > MVM_${tmp2%_stat*}.sh
+	$dataMatrix" > MVM_${finalOut}.sh
+
+
+	# run script
+	if [ $runIt == 1 ]; then
+		if [ ! -f MVM_${finalOut}+tlrc.HEAD ]; then
+			source MVM_${finalOut}.sh
+		fi
+	fi
+
+
+	# check
+	if [ ! -f MVM_${finalOut}+tlrc.HEAD ]; then
+		echo >&2
+		echo "MVM failed on $finalOut. Exit 3"
+		echo >&2
+		exit 3
+	fi
 done
-
-
-
-
-
-
-
-
-
-
-
-
-## set up - determine/construct variables for script
-#unset conVar gltCount dataFrame
-
-#if [ ${#bsArr[@]} -gt 1 ]; then
-
-
-	## header, bx-subj title
-	#bsVars=BSVARS
-	#header="Subj $bsVars WSVARS InputFile"
-
-
-	## make $conVar (post-hoc comparisons)
-	#for x in ${!arrBS[@]}; do
-
-		#h1=${arrBS[$x]:0:1}
-		#h2=${arrBS[$x]:1:1}
-
-		#bsCon="1*${bsArr[$h1]} -1*${bsArr[$h2]}"
-		#bsLab=${bsArr[$h1]}-${bsArr[$h2]}
-
-		#for y in ${!arr[@]}; do
-
-			#gltCount=$[$gltCount+1]
-			#ws1h=${arr[$y]:0:1}
-			#ws2h=${arr[$y]:1:1}
-
-			#eval declare -a nam1=(nam${ws1h})
-			#eval declare -a nam2=(nam${ws2h})
-			#name1=$(eval echo \${${nam1}[$arrCount]})
-			#name2=$(eval echo \${${nam2}[$arrCount]})
-
-			#conVar+="-gltLabel $gltCount ${bsLab}_${name1}-${name2} -gltCode $gltCount '${bsVars}: $bsCon WSVARS: 1*$name1 -1*$name2' "
-		#done
-	#done
-
-
-	## determine group membership, write dataframe
-	#bsSubj=(`cat $bsList | awk '{print $1}'`)
-	#bsGroup=(`cat $bsList | awk '{print $2}'`)
-
-	#scan=${pref}_stats_REML_blur${blurInt}+tlrc
-
-	#for m in ${subjList[@]}; do
-		#for n in ${!bsSubj[@]}; do
-			#if [ $m == ${bsSubj[$n]} ]; then
-				#for o in ${wsList[@]}; do
-
-					#brik=$(eval echo \${arr${o}[$arrCount]})
-					#name=$(eval echo \${nam${o}[$arrCount]})
-
-					#dataFrame+="$m ${bsGroup[$n]} $name ${workDir}/${m}/'${scan}[${brik}]' "
-				#done
-			#fi
-		#done
-	#done
-
-#else
-	##bsVars=1
-	##header="Subj WSVARS InputFile"
-
-	##for y in ${!arr[@]}; do
-
-		##gltCount=$[$gltCount+1]
-		##ws1h=${arr[$y]:0:1}
-		##ws2h=${arr[$y]:1:1}
-
-		##eval declare -a nam1=(nam${ws1h})
-		##eval declare -a nam2=(nam${ws2h})
-		##name1=$(eval echo \${${nam1}[$arrCount]})
-		##name2=$(eval echo \${${nam2}[$arrCount]})
-
-		##conVar+="-gltLabel $gltCount ${name1}-${name2} -gltCode $gltCount 'WSVARS: 1*$name1 -1*$name2' "
-	##done
-
-	##for m in ${subjList[@]}; do
-		##for n in ${wsList[@]}; do
-
-			##brik=$(eval echo \${arr${n}[$arrCount]})
-			##name=$(eval echo \${nam${n}[$arrCount]})
-
-			##dataFrame+="$m $name ${workDir}/${m}/'${scan}[${brik}]' "
-		##done
-	##done
-#fi
-
-
-## write script
-#echo "module load r/3/5
-
-	#3dMVM -prefix $outPre \\
-	#-jobs 10 \\
-	#-mask $mask \\
-	#-bsVars $bsVars \\
-	#-wsVars 'WSVARS' \\
-	#-num_glt $gltCount \\
-	#$conVar \\
-	#-dataTable \\
-	#$header \\
-	#$dataFrame" > ${outDir}/${outPre}.sh
-
-
-## run MVM
-#if [ $runIt == 1 ]; then
-	#if [ ! -f ${outPre}+tlrc.HEAD ]; then
-		#source ${outDir}/${outPre}.sh
-	#fi
-
-	## Check
-	#if [ ! -f ${outPre}+tlrc.HEAD ]; then
-		#echo >&2
-		#echo "MVM failed on $outPre. Exiting. Exit 8" >&2
-		#echo >&2
-		#exit 8
-	#fi
-#fi
