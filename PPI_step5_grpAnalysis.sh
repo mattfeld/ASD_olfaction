@@ -292,7 +292,7 @@ for i in ${ppiList[@]}; do
 	for j in ${!arrName[@]}; do
 
 		num=$(($j+1))
-		conMatrix+="-gltLabel $num G.${arrName[$j]} -gltCode $num 'Group: 1*Con -1*Aut Stim: 1*${arrName[$j]} Snif: SPA:' "
+		conMatrix+="-glfLabel $num G.${arrName[$j]} -glfCode $num 'Group: 1*Con -1*Aut Stim: 1*${arrName[$j]} Snif: SPA:' "
 	done
 	numGlt=$num
 
@@ -333,7 +333,7 @@ for i in ${ppiList[@]}; do
 	-bsVars 'Group' \\
 	-wsVars 'Stim' \\
 	-qVars 'Snif,SPA' \\
-	-num_glt $numGlt \\
+	-num_glf $numGlt \\
 	$conMatrix \\
 	-dataTable \\
 	$dataMatrixHead \\
