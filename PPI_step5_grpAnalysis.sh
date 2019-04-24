@@ -65,39 +65,13 @@ namFUMC=(Mask FBO UBO CA)
 namFUMvC=(CA Odor)
 namFUvC=(CA Mask FUBO)
 
-#arrA=(29 23 26)												# setA beh sub-brik for compList. Must be same length as compList
-#arrB=(32 26 29)												# setB
-#arrC=(35 x 32)
-#arrD=(38 x x)
-#listX=ABCD													# list of arr? used, for building permutations (e.g. listX=ABC)
-
-#namA=(Mask CA CA)											# names of behaviors from arrA. Must be same length as arrA
-#namB=(FBO Odor Mask)
-#namC=(UBO x FUBO)
-#namD=(CA x x)
-
 
 ### MVM vars/arrs
 blurM=2														# blur multiplier, float/int
 bsArr=(Aut Con)												# Bx-subject variables (groups)
 
-## bs group
-#cd $workDir
-#> ${outDir}/Group_list.txt
-
-#for i in s*; do
-	#tmp=${i/sub-}; group=${tmp%??}
-	#if [[ $group == 1? ]]; then
-		#echo -e "$i \t Con" >> ${outDir}/Group_list.txt;
-	#else
-		#echo -e "$i \t Aut" >> ${outDir}/Group_list.txt;
-	#fi
-#done
-#bsList=${outDir}/Group_list.txt								# Needed when bsArr > 1. List where col1 = subj identifier, col2 = group membership (e.g. s1295 Con)
-
 
 # covariates and group membership
-# covHead=(`head -n 1 ${outDir}/Cov_list.txt`)
 covSubj=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $1}'`)
 covGroup=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $2}'`)
 covSnif=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $3}'`)
@@ -142,17 +116,6 @@ MakePerm () {
 
 
 ### --- Set up --- ###
-
-# make permutation lists
-# arr=(`MakePerm $listX`)
-# alpha=(`echo {A..Z}`)
-# wsList=(${alpha[@]:0:${#listX}})
-
-# for ((a=0; a<${#bsArr[@]}; a++)); do
-# 	tmpList+=$a
-# done
-# arrBS=(`MakePerm $tmpList`)
-
 
 # make ppi list
 cd ${refFile%run*}
