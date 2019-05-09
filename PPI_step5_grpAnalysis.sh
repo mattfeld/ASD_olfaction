@@ -117,6 +117,16 @@ MakePerm () {
 
 ### --- Set up --- ###
 
+# remove subjects
+arrRem=(`cat ${outDir}/info_rmSubj_${pref}.txt`)
+
+
+# blur
+gridSize=`3dinfo -dk $refFile`
+blurH=`echo $gridSize*$blurM | bc`
+blurInt=`printf "%.0f" $blurH`
+
+
 # make ppi list
 cd ${refFile%run*}
 
@@ -124,6 +134,28 @@ c=0; for i in PPI*stats_REML+tlrc.HEAD; do
 
 	ppiList[$c]=${i%.*}
 	let c=$[$c+1]
+done
+
+
+# blur ppi
+cd $workDir
+
+for i in s*; do
+
+	MatchString "$i" "${arrRem[@]}"
+
+	if [ $? == 1 ]; then
+
+		cd $i
+		for j in PPI*stats_REML+tlrc.HEAD; do
+			
+			file=${j%+*}
+			if [ ! -f ${file}_blur${blurInt}+tlrc.HEAD ]; then
+				3dmerge -prefix ${file}_blur${blurInt} -1blur_fwhm $blurInt -doall ${j%.*}
+			fi
+		done
+		cd $workDir
+	fi
 done
 
 
@@ -211,7 +243,6 @@ arrCount=0; while [ $arrCount -lt $compLen ]; do
 
 	for j in ${workDir}/s*; do
 
-		arrRem=(`cat info_rmSubj_${pref}.txt`)
 		subj=${j##*\/}
 		MatchString "$subj" "${arrRem[@]}"
 
@@ -222,10 +253,6 @@ arrCount=0; while [ $arrCount -lt $compLen ]; do
 
 
 	# blur, determine parameter estimate
-	gridSize=`3dinfo -dk $refFile`
-	blurH=`echo $gridSize*$blurM | bc`
-	blurInt=`printf "%.0f" $blurH`
-
 	if [ $runIt == 1 ]; then
 		if [ ! -s $print ]; then
 			for k in ${subjList[@]}; do
@@ -234,7 +261,7 @@ arrCount=0; while [ $arrCount -lt $compLen ]; do
 					hold=${workDir}/${k}/${pref}_${m}_REML
 					file=${workDir}/${k}/${pref}_errts_REML_blur${blurInt}+tlrc
 
-					# blur
+					# blur deconv
 					if [ ! -f ${hold}_blur${blurInt}+tlrc.HEAD ]; then
 						3dmerge -prefix ${hold}_blur${blurInt} -1blur_fwhm $blurInt -doall ${hold}+tlrc
 					fi
@@ -280,6 +307,9 @@ for i in ${ppiList[@]}; do
 	tmp1=${tmp%_*}
 	decon=${tmp1#*_}
 
+	tmp2=${i%+*}
+	blur=${tmp2}_blur6+tlrc
+
 
 	# determine behvaiors, sub-bricks
 	arrBrick=($(eval echo \${arr${decon}[@]}))
@@ -316,7 +346,11 @@ for i in ${ppiList[@]}; do
 				d=0; while [ $d -lt ${#arrName[@]} ]; do
 
 					# dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covSnif[$c]} ${covSPA[$c]} ${workDir}/${subj}/${i}'[${arrBrick[$d]}]' "
-					dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${workDir}/${subj}/${i}'[${arrBrick[$d]}]' "
+					# dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${workDir}/${subj}/${i}'[${arrBrick[$d]}]' "
+
+					# dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covSnif[$c]} ${covSPA[$c]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
+					dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
+
 					let d=$[$d+1]
 				done
 			fi
