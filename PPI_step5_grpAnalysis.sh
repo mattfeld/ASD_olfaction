@@ -328,8 +328,8 @@ for i in ${ppiList[@]}; do
 
 
 	### set up dataframe
-	# dataMatrixHead="Subj Group Stim Snif SPA InputFile"
-	dataMatrixHead="Subj Group Stim InputFile"
+	dataMatrixHead="Subj Group Stim Snif SPA InputFile"
+	# dataMatrixHead="Subj Group Stim InputFile"
 
 	unset dataMatrix
 
@@ -345,11 +345,8 @@ for i in ${ppiList[@]}; do
 				# loop through behaviors/sub-bricks
 				d=0; while [ $d -lt ${#arrName[@]} ]; do
 
-					# dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covSnif[$c]} ${covSPA[$c]} ${workDir}/${subj}/${i}'[${arrBrick[$d]}]' "
-					# dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${workDir}/${subj}/${i}'[${arrBrick[$d]}]' "
-
-					# dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covSnif[$c]} ${covSPA[$c]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
-					dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
+					dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covSnif[$c]} ${covSPA[$c]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
+					# dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
 
 					let d=$[$d+1]
 				done
@@ -363,23 +360,12 @@ for i in ${ppiList[@]}; do
 	tmp2=${i#*_}
 	finalOut=${tmp2%_stat*}
 
-	# echo " module load r/3/5
-
-	# 3dMVM -prefix MVM_${finalOut} -jobs 10 -mask $mask \\
-	# -bsVars 'Group*Snif+Group*SPA' \\
-	# -wsVars Stim \\
-	# -qVars 'Snif,SPA' \\
-	# -num_glt $numGlt \\
-	# $conMatrix \\
-	# -dataTable \\
-	# $dataMatrixHead \\
-	# $dataMatrix" > MVM_${finalOut}.sh
-
 	echo " module load r/3/5
 
 	3dMVM -prefix MVM_${finalOut} -jobs 10 -mask $mask \\
-	-bsVars 'Group' \\
+	-bsVars 'Group*Snif+Group*SPA' \\
 	-wsVars Stim \\
+	-qVars 'Snif,SPA' \\
 	-num_glt $numGlt \\
 	$conMatrix \\
 	-dataTable \\
