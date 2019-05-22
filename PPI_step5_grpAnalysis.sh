@@ -54,16 +54,11 @@ mask=Intersection_GM_mask+tlrc								# this will be made, just specify name for
 runIt=1														# whether ETAC/MVM scripts actually run (and not just written) (1)
 thr=0.3														# thresh value for Group_EPI_mask, ref Group_EPI_mean
 
-compList=(FUMC FUMvC FUvC)									# matches decon prefixes, and will be prefix of output files
+compList=(FUMC)												# matches decon prefixes, and will be prefix of output files
 compLen=${#compList[@]}
 
 arrFUMC=(29 32 35 38)
-arrFUMvC=(23 26)
-arrFUvC=(26 29 32)
-
 namFUMC=(Mask FBO UBO CA)
-namFUMvC=(CA Odor)
-namFUvC=(CA Mask FUBO)
 
 
 ### MVM vars/arrs
@@ -72,10 +67,10 @@ bsArr=(Aut Con)												# Bx-subject variables (groups)
 
 
 # covariates and group membership
-covSubj=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $1}'`)
-covGroup=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $2}'`)
-covSnif=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $3}'`)
-covSPA=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $4}'`)
+covSubj=(`tail -n +2 ${outDir}/PCA_list.txt | awk '{print $1}'`)
+covGroup=(`tail -n +2 ${outDir}/PCA_list.txt | awk '{print $2}'`)
+covOdor=(`tail -n +2 ${outDir}/PCA_list.txt | awk '{print $3}'`)
+covScore=(`tail -n +2 ${outDir}/PCA_list.txt | awk '{print $4}'`)
 
 
 
@@ -328,9 +323,7 @@ for i in ${ppiList[@]}; do
 
 
 	### set up dataframe
-	dataMatrixHead="Subj Group Stim Snif SPA InputFile"
-	# dataMatrixHead="Subj Group Stim InputFile"
-
+	dataMatrixHead="Subj Group Stim Odor Score InputFile"
 	unset dataMatrix
 
 	# loop through covariates
@@ -345,9 +338,7 @@ for i in ${ppiList[@]}; do
 				# loop through behaviors/sub-bricks
 				d=0; while [ $d -lt ${#arrName[@]} ]; do
 
-					dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covSnif[$c]} ${covSPA[$c]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
-					# dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
-
+					dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covOdor[$c]} ${covScore[$c]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
 					let d=$[$d+1]
 				done
 			fi
@@ -363,9 +354,9 @@ for i in ${ppiList[@]}; do
 	echo " module load r/3/5
 
 	3dMVM -prefix MVM_${finalOut} -jobs 10 -mask $mask \\
-	-bsVars 'Group*Snif+Group*SPA' \\
+	-bsVars 'Group*Odor+Group*Score' \\
 	-wsVars Stim \\
-	-qVars 'Snif,SPA' \\
+	-qVars 'Odor,Score' \\
 	-num_glt $numGlt \\
 	$conMatrix \\
 	-dataTable \\
