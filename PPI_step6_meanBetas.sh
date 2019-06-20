@@ -46,18 +46,14 @@ outDir=${grpDir}/MVM_betas
 refDir=${workDir}/sub-1048											# reference file for dimensions etc
 
 
-# I'm only including meaningful sub-bricks
-# fileArr=(FUMC FUMvC)												# decon files from which betas will be extracted - should match step4.
-# arrA=(37 28)														# sub-bricks corresponding to $fileArr
-# arrLen=${#arrA[@]}
+clustList=(FUMC_{2,5,8a})											# a list of comparisons that have a meaningful difference
+varFUMC=35															# sub-brick(s) of sig behavior - only built for 1 right now
 
 unset tmp
-clustList=(FUMC_{2,5,8a} FUMvC_5)									# a list of comparisons that have a meaningful difference
-clust1=(`echo 16$tmp{1..3} 14`)
-clust2=(`echo 17$tmp{1..3} 15`)
+clust1=(`echo 16$tmp{1..3}`)										# overlay sub-brick, for extracting clusters
+clust2=(`echo 17$tmp{1..3}`)										# threshold sub-brick
 
-varFUMC=35
-varFUMvC=26
+
 
 
 # function - search array for string
@@ -76,7 +72,7 @@ MatchString (){
 mkdir $outDir $clustDir
 cd ${grpDir}/blur_covariates
 
-# for i in MVM*.HEAD; do
+
 c=0; while [ $c -lt ${#clustList[@]} ]; do
 
 	pref=${clustList[$c]}
@@ -98,16 +94,13 @@ done
 
 
 
-### pull mean betas for e/cluster from e/comparison from e/subject
+### pull mean beta-coeff
 cd $clustDir
 
-# c=0; while [ $c -lt $arrLen ]; do
 c=0; while [ $c -lt ${#clustList[@]} ]; do
 
 	hold=${clustList[$c]}
 	pref=${hold%_*}
-
-	# betas=${arrA[$c]}
 	betas=$(eval echo \${var${pref}})
 	arrRem=(`cat ${grpDir}/info_rmSubj_${pref}.txt`)
 
