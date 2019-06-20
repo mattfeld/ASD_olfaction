@@ -70,7 +70,7 @@ MatchString (){
 
 ### make clusters, tables
 mkdir $outDir $clustDir
-cd ${grpDir}/blur_covariates
+cd $grpDir
 
 
 c=0; while [ $c -lt ${#clustList[@]} ]; do
