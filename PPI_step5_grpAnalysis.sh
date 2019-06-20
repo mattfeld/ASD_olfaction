@@ -61,16 +61,20 @@ arrFUMC=(29 32 35 38)
 namFUMC=(Mask FBO UBO CA)
 
 
+
 ### MVM vars/arrs
 blurM=2														# blur multiplier, float/int
 bsArr=(Aut Con)												# Bx-subject variables (groups)
 
 
 # covariates and group membership
-covSubj=(`tail -n +2 ${outDir}/PCA_list.txt | awk '{print $1}'`)
-covGroup=(`tail -n +2 ${outDir}/PCA_list.txt | awk '{print $2}'`)
-covOdor=(`tail -n +2 ${outDir}/PCA_list.txt | awk '{print $3}'`)
-covScore=(`tail -n +2 ${outDir}/PCA_list.txt | awk '{print $4}'`)
+covSubj=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $1}'`)
+covGroup=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $2}'`)
+covSnif=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $3}'`)
+covSPA=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $4}'`)
+covIUS=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $5}'`)
+covRBQ=(`tail -n +2 ${outDir}/Cov_list.txt | awk '{print $6}'`)
+
 
 
 
@@ -323,7 +327,7 @@ for i in ${ppiList[@]}; do
 
 
 	### set up dataframe
-	dataMatrixHead="Subj Group Stim Odor Score InputFile"
+	dataMatrixHead="Subj Group Stim Snif SPA IUS RBQ InputFile"
 	unset dataMatrix
 
 	# loop through covariates
@@ -338,7 +342,8 @@ for i in ${ppiList[@]}; do
 				# loop through behaviors/sub-bricks
 				d=0; while [ $d -lt ${#arrName[@]} ]; do
 
-					dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covOdor[$c]} ${covScore[$c]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
+					dataMatrix+="${subj} ${covGroup[$c]} ${arrName[$d]} ${covSnif[$c]} ${covSPA[$c]} ${covIUS[$c]} ${covRBQ[$c]} ${workDir}/${subj}/${blur}'[${arrBrick[$d]}]' "
+
 					let d=$[$d+1]
 				done
 			fi
@@ -354,9 +359,9 @@ for i in ${ppiList[@]}; do
 	echo " module load r/3/5
 
 	3dMVM -prefix MVM_${finalOut} -jobs 10 -mask $mask \\
-	-bsVars 'Group*Odor+Group*Score' \\
+	-bsVars 'Group*Snif+Group*SPA' \\
 	-wsVars Stim \\
-	-qVars 'Odor,Score' \\
+	-qVars 'Snif,SPA' \\
 	-num_glt $numGlt \\
 	$conMatrix \\
 	-dataTable \\
