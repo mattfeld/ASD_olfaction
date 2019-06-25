@@ -3,6 +3,7 @@
 #SBATCH --time=20:00:00   # walltime
 #SBATCH --ntasks=10   # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
+#SBATCH -C 'rhel7'   # RHEL 7
 #SBATCH --mem-per-cpu=6gb   # memory per CPU core
 #SBATCH -J "PPI5"   # job name
 
@@ -16,8 +17,8 @@ export PBS_QUEUE=batch
 export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 
 
-
-
+# module load r/3.6
+# module load python/2.7
 
 # Written by Nathan Muncy on 11/2/18
 
@@ -323,6 +324,11 @@ for i in ${ppiList[@]}; do
 		num=$(($j+1))
 		conMatrix+="-gltLabel $num G_${arrName[$j]} -gltCode $num 'Group : 1*Con -1*Aut Stim : 1*${arrName[$j]} ' "
 	done
+
+
+	# add anova contrast
+	let num=$[$num+1]
+	conMatrix+="-gltLabel $num G_FUBO -gltCode $num 'Group : 1*Con -1*Aut Stim : 1*FBO -1*UBO '"
 	numGlt=$num
 
 
@@ -356,7 +362,7 @@ for i in ${ppiList[@]}; do
 	tmp2=${i#*_}
 	finalOut=${tmp2%_stat*}
 
-	echo " module load r/3/5
+	echo " module load r/3.6
 
 	3dMVM -prefix MVM_${finalOut} -jobs 10 -mask $mask \\
 	-bsVars 'Group*Snif+Group*SPA' \\

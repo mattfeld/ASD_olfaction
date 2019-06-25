@@ -46,13 +46,14 @@ outDir=${grpDir}/MVM_betas
 refDir=${workDir}/sub-1048											# reference file for dimensions etc
 
 
-clustList=(FUMC_{2,5,8a})											# a list of comparisons that have a meaningful difference
-varFUMC=35															# sub-brick(s) of sig behavior - only built for 1 right now
+clustList=(FUMC_{1,RPF,2,5,8a})										# a list of comparisons that have a meaningful difference
+
 
 unset tmp
-clust1=(`echo 16$tmp{1..3}`)										# overlay sub-brick, for extracting clusters
-clust2=(`echo 17$tmp{1..3}`)										# threshold sub-brick
-
+varFUMC=(`echo 35$tmp{1..3}`)										# sub-brick(s) of sig behavior - only built for 1 right now
+clust1=(`echo 20$tmp{1..2} 16$tmp{1..3}`)							# overlay sub-brick, for extracting clusters
+clust2=(`echo 21$tmp{1..2} 17$tmp{1..3}`)							# threshold sub-brick
+anBrick=32,35														# patch for multiple betas (to deal with line 53)
 
 
 
@@ -101,8 +102,15 @@ c=0; while [ $c -lt ${#clustList[@]} ]; do
 
 	hold=${clustList[$c]}
 	pref=${hold%_*}
-	betas=$(eval echo \${var${pref}})
 	arrRem=(`cat ${grpDir}/info_rmSubj_${pref}.txt`)
+
+
+	# patch to pull multiple sub-bricks
+	if [ $hold != FUMC_1 ] && [ $hold != FUMC_RPF ]; then
+		betas=$(eval echo \${var${pref}})
+	else
+		betas=$anBrick
+	fi
 
 
 	# split clust masks
