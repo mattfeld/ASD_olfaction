@@ -1,18 +1,20 @@
 #!/bin/bash
 
 
-parDir=/Volumes/Yorick/Nate_work/AutismOlfactory/Analyses/grpAnalysis
+parDir=/Volumes/Yorick/Nate_work/AutismOlfactory/Analyses/grpAnalysis/4COV_analysis
 workDir=${parDir}/MVM_betas
 statsDir=${parDir}/MVM_stats
 mkdir $statsDir
 
 
-compList=(FUMC_{2,5,8a} FUMvC_5)
+# This portion is over built, since there are usually multiple types of analyses
+compList=(FUMC_{1,2,5,8a,RPF})
 
+arrFUMC_1=(LAG)
 arrFUMC_2=(LINS)
 arrFUMC_5=(LPCU)
 arrFUMC_8a=(LPCG)
-arrFUMvC_5=(LPCU)
+arrFUMC_RPF=(LRSP)
 
 
 cd $workDir
