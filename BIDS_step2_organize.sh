@@ -45,20 +45,25 @@ fi
 # Anat - deface
 cd ${subjDir}/anat
 
-pref=sub-South_Bo_${subj#*-}
-3dAllineate -base tmp_${pref}_T1w.nii.gz -input ${tempDir}/mean_reg2mean.nii.gz -prefix tmp_mean_reg2mean_aligned.nii -1Dmatrix_save tmp_allineate_matrix
-3dAllineate -base tmp_${pref}_T1w.nii.gz -input ${tempDir}/facemask.nii.gz -prefix tmp_facemask_aligned.nii -1Dmatrix_apply tmp_allineate_matrix.aff12.1D
-3dcalc -a tmp_facemask_aligned.nii -b tmp_sub-${subj}_T1w.nii.gz -prefix sub-${subj}_T1w.nii.gz -expr "step(a)*b"
-mv tmp_${pref}_T1w.json ${subj}_T1w.json
+if [ ! -f {subj}_T1w.nii.gz ]; then
 
-if [ -f ${subj}_T1w.nii.gz ]; then
-	rm tmp*
-else
-	echo >&2
-	echo "Defaced output not detected. Exit 2" >&2
-	echo >&2
-	exit 2
+	pref=sub-South_Bo_${subj#*-}
+	3dAllineate -base tmp_${pref}_T1w.nii.gz -input ${tempDir}/mean_reg2mean.nii.gz -prefix tmp_mean_reg2mean_aligned.nii -1Dmatrix_save tmp_allineate_matrix
+	3dAllineate -base tmp_${pref}_T1w.nii.gz -input ${tempDir}/facemask.nii.gz -prefix tmp_facemask_aligned.nii -1Dmatrix_apply tmp_allineate_matrix.aff12.1D
+	3dcalc -a tmp_facemask_aligned.nii -b tmp_${pref}_T1w.nii.gz -prefix ${subj}_T1w.nii.gz -expr "step(a)*b"
+	mv tmp_${pref}_T1w.json ${subj}_T1w.json
+
+	# check for output
+	if [ -f ${subj}_T1w.nii.gz ]; then
+		rm tmp*
+	else
+		echo >&2
+		echo "Defaced output not detected. Exit 2" >&2
+		echo >&2
+		exit 2
+	fi
 fi
+
 
 
 # Func - append Json
@@ -70,4 +75,4 @@ for i in *json; do
 		jq '. |= . + {"TaskName":"AutismOlfactory"}' $i > tasknameadd.json
 		rm $i && mv tasknameadd.json $i
 	fi
-fi
+done

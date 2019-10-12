@@ -38,9 +38,9 @@ fi
 
 
 cd ${workDir}/rawdata
-# for i in sub*; do
-for i in sub-1048; do
-	if [ ! -f ${subj}/anat/sub-${i}_T1w.json ]; then
+
+for i in sub*; do
+	if [ ! -f ${subj}/anat/${i}_T1w.json ]; then
 
 	    sbatch \
 	    -o ${outDir}/output_TS1_${i}.txt \
