@@ -51,7 +51,7 @@ for i in S*; do
 
 	# t1 data
 	if [ ! -f ${anatDir}/sub-${subj}_T1w.nii.gz ]; then
-		dcm2niix -b y -ba y -z y -o $anatDir -f sub-${i}_T1w ${dataDir}/${t1Dir}*/
+		dcm2niix -b y -ba y -z y -o $anatDir -f tmp_sub-${i}_T1w ${dataDir}/${t1Dir}*/
 	fi
 
 
