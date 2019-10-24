@@ -15,4 +15,4 @@ mkdir -p $outDir
 sbatch \
 -o ${outDir}/output_TS4.txt \
 -e ${outDir}/error_TS4.txt \
-Task_step4_grpAnalysis.sh
+Task_step4_modelNoise.sh
