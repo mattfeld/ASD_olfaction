@@ -18,18 +18,11 @@ export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 
 # General variables
 parDir=~/compute/AutismOlfactory
-# parDir=/Volumes/Yorick/Nate_work/AutismOlfactory
 workDir=${parDir}/derivatives								# par dir of data
 stimDir=${parDir}/stimuli
 outDir=${parDir}/Analyses/grpAnalysis						# where output will be written (should match step3)
-# refFile=${workDir}/sub-1048/run-3_AO_scale+tlrc				# reference file, for finding dimensions etc
-
-# tempDir=${parDir}/Template									# desired template
-# priorDir=${tempDir}/priors_ACT								# location of atropos priors
 mask=${outDir}/Intersection_GM_mask+tlrc								# this will be made, just specify name for the interesection gray matter mask
 
-
-# deconList=(FUMC OC SMC)
 
 arrFUMC=(1 3 5 7)
 arrOC=(1 3)
@@ -41,7 +34,7 @@ namSMC=(CA Mask FUBO)
 
 
 # load arrays
-arrRem=(`cat ${outDir}/info_rmSubj_FUMC`)
+arrRem=(`cat ${outDir}/info_rmSubj_FUMC.txt`)
 subjAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $1}'`)
 groupAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $2}'`)
 snifAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $3}'`)
@@ -75,7 +68,7 @@ c=0; while [ $c -lt ${#subjAll[@]} ]; do
 	file=${workDir}/${subj}/FUMC_stats_REML+tlrc
 
 	MatchString "$subj" "${arrRem[@]}"
-	if [ $? ==1 ] && [ -f ${file}.HEAD ]; then
+	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
 		cc=0; while [ $cc -lt ${#arrFUMC[@]} ]; do
 
 			dataFUMC+="$subj ${groupAll[$c]} ${namFUMC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrFUMC[$cc]}]' "
@@ -93,7 +86,7 @@ c=0; while [ $c -lt ${#subjAll[@]} ]; do
 	file=${workDir}/${subj}/OC_stats_REML+tlrc
 
 	MatchString "$subj" "${arrRem[@]}"
-	if [ $? ==1 ] && [ -f ${file}.HEAD ]; then
+	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
 		cc=0; while [ $cc -lt ${#arrOC[@]} ]; do
 
 			dataOC+="$subj ${groupAll[$c]} ${namOC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrOC[$cc]}]' "
@@ -111,7 +104,7 @@ c=0; while [ $c -lt ${#subjAll[@]} ]; do
 	file=${workDir}/${subj}/SMC_stats_REML+tlrc
 
 	MatchString "$subj" "${arrRem[@]}"
-	if [ $? ==1 ] && [ -f ${file}.HEAD ]; then
+	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
 		cc=0; while [ $cc -lt ${#arrSMC[@]} ]; do
 
 			dataSMC+="$subj ${groupAll[$c]} ${namSMC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrSMC[$cc]}]' "
@@ -122,10 +115,10 @@ c=0; while [ $c -lt ${#subjAll[@]} ]; do
 done
 
 
-## for testing
-echo $dataFUMC > ${outDir}/FUMC.txt
-echo $dataOC > ${outDir}/OC.txt
-echo $dataSMC > ${outDir}/SMC.txt
+# ## for testing
+# echo $dataFUMC > ${outDir}/FUMC.txt
+# echo $dataOC > ${outDir}/OC.txt
+# echo $dataSMC > ${outDir}/SMC.txt
 
 
 
@@ -133,27 +126,27 @@ echo $dataSMC > ${outDir}/SMC.txt
 #
 # Runs 3 MVMs, using Snif, SPA as covariates
 
-# module load r/3.6
+module load r/3.6
 
-# cd $outDir
+cd $outDir
 
-# if [ ! -f MVM_FUMC+tlrc.HEAD ]; then
+if [ ! -f MVM_FUMC+tlrc.HEAD ]; then
 
-# 	3dMVM -prefix MVM_FUMC \
-# 	-jobs 10 \
-# 	-mask $mask \
-# 	-bsVars 'Group*Snif+Group*SPA' \
-# 	-wsVars Stim \
-# 	-qVars 'Snif,SPA' \
-# 	-num_glt 4 \
-# 	-gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask Snif : SPA : ' \
-# 	-gltLabel 2 G_FBO -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*FBO Snif : SPA : ' \
-# 	-gltLabel 3 G_UBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*UBO Snif : SPA : ' \
-# 	-gltLabel 4 G_CA -gltCode 4 'Group : 1*Aut -1*Con Stim : 1*CA Snif : SPA : ' \
-# 	-dataTable \
-# 	Subj Group Stim Snif SPA InputFile \
-# 	$dataFUMC
-# fi
+	3dMVM -prefix MVM_FUMC \
+	-jobs 10 \
+	-mask $mask \
+	-bsVars 'Group*Snif+Group*SPA' \
+	-wsVars Stim \
+	-qVars 'Snif,SPA' \
+	-num_glt 4 \
+	-gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask Snif : SPA : ' \
+	-gltLabel 2 G_FBO -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*FBO Snif : SPA : ' \
+	-gltLabel 3 G_UBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*UBO Snif : SPA : ' \
+	-gltLabel 4 G_CA -gltCode 4 'Group : 1*Aut -1*Con Stim : 1*CA Snif : SPA : ' \
+	-dataTable \
+	Subj Group Stim Snif SPA InputFile \
+	$dataFUMC
+fi
 
 
 # if [ ! -f MVM_OC+tlrc.HEAD ]; then
