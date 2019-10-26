@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #SBATCH --time=05:00:00   # walltime
-#SBATCH --ntasks=6   # number of processor cores (i.e. tasks)
+#SBATCH --ntasks=10   # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
-#SBATCH --mem-per-cpu=8gb   # memory per CPU core
+#SBATCH --mem-per-cpu=6gb   # memory per CPU core
 #SBATCH -J "TS5"   # job name
 
 # Compatibility variables for PBS. Delete if not needed.
@@ -16,13 +16,17 @@ export PBS_QUEUE=batch
 export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 
 
-# General variables
+
+
+### Set General variables
 parDir=~/compute/AutismOlfactory
 workDir=${parDir}/derivatives								# par dir of data
 stimDir=${parDir}/stimuli
 outDir=${parDir}/Analyses/grpAnalysis						# where output will be written (should match step3)
 mask=${outDir}/Intersection_GM_mask+tlrc								# this will be made, just specify name for the interesection gray matter mask
 
+
+prefArr=(FUMC OC SMC)
 
 arrFUMC=(1 3 5 7)
 arrOC=(1 3)
@@ -33,8 +37,9 @@ namOC=(CA Odor)
 namSMC=(CA Mask FUBO)
 
 
-# load arrays
-arrRem=(`cat ${outDir}/info_rmSubj_FUMC.txt`)
+
+
+### load arrays
 subjAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $1}'`)
 groupAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $2}'`)
 snifAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $3}'`)
@@ -42,7 +47,8 @@ spaAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $4}'`)
 
 
 
-# Functions
+
+### Functions
 MatchString () {
 
 	local e match="$1"
@@ -57,128 +63,176 @@ MatchString () {
 
 
 
-### Make data frames
+### Make data tables
 #
-# hard code for simplicity
+# Exclude necessary participants
+# Only inlcude particiapnts who have the data
+# Include covariates (not mean-centered)
+# Written indivdiuall for each contrast for simplicity's sake
 
-unset dataFUMC
-c=0; while [ $c -lt ${#subjAll[@]} ]; do
 
-	subj=sub-${subjAll[$c]}
-	file=${workDir}/${subj}/FUMC_stats_REML+tlrc
+for i in ${prefArr[@]}; do
 
-	MatchString "$subj" "${arrRem[@]}"
-	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
-		cc=0; while [ $cc -lt ${#arrFUMC[@]} ]; do
+	unset hold{Brick,Name} arrRem holdList
+	c=0; while [ $c -lt ${#subjAll[@]} ]; do
 
-			dataFUMC+="$subj ${groupAll[$c]} ${namFUMC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrFUMC[$cc]}]' "
-			let cc+=1
-		done
-	fi
-	let c+=1
+		subj=sub-${subjAll[$c]}
+		file=${workDir}/${subj}/${i}_stats_REML+tlrc
+		arrRem=(`cat ${outDir}/info_rmSubj_${i}.txt`)
+
+		holdBrick=($(eval echo \${arr${i}[@]}))
+		holdName=($(eval echo \${nam${i}[@]}))
+
+		MatchString "$subj" "${arrRem[@]}"
+		if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
+			cc=0; while [ $cc -lt ${#holdName[@]} ]; do
+				holdList+="$subj ${groupAll[$c]} ${holdName[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${holdBrick[$cc]}]' "
+				let cc+=1
+			done
+		fi
+		let c+=1
+	done
+
+	declare $(eval echo data$i)="$holdList"
 done
 
 
-unset dataOC
-c=0; while [ $c -lt ${#subjAll[@]} ]; do
-
-	subj=sub-${subjAll[$c]}
-	file=${workDir}/${subj}/OC_stats_REML+tlrc
-
-	MatchString "$subj" "${arrRem[@]}"
-	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
-		cc=0; while [ $cc -lt ${#arrOC[@]} ]; do
-
-			dataOC+="$subj ${groupAll[$c]} ${namOC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrOC[$cc]}]' "
-			let cc+=1
-		done
-	fi
-	let c+=1
-done
 
 
-unset dataSMC
-c=0; while [ $c -lt ${#subjAll[@]} ]; do
+# unset dataFUMC arrRem
+# c=0; while [ $c -lt ${#subjAll[@]} ]; do
 
-	subj=sub-${subjAll[$c]}
-	file=${workDir}/${subj}/SMC_stats_REML+tlrc
+# 	subj=sub-${subjAll[$c]}
+# 	file=${workDir}/${subj}/FUMC_stats_REML+tlrc
+# 	arrRem=(`cat ${outDir}/info_rmSubj_FUMC.txt`)
 
-	MatchString "$subj" "${arrRem[@]}"
-	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
-		cc=0; while [ $cc -lt ${#arrSMC[@]} ]; do
+# 	MatchString "$subj" "${arrRem[@]}"
+# 	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
+# 		cc=0; while [ $cc -lt ${#arrFUMC[@]} ]; do
 
-			dataSMC+="$subj ${groupAll[$c]} ${namSMC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrSMC[$cc]}]' "
-			let cc+=1
-		done
-	fi
-	let c+=1
-done
-
-
-# ## for testing
-# echo $dataFUMC > ${outDir}/FUMC.txt
-# echo $dataOC > ${outDir}/OC.txt
-# echo $dataSMC > ${outDir}/SMC.txt
+# 			dataFUMC+="$subj ${groupAll[$c]} ${namFUMC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrFUMC[$cc]}]' "
+# 			let cc+=1
+# 		done
+# 	fi
+# 	let c+=1
+# done
 
 
+# unset dataOC arrRem
+# c=0; while [ $c -lt ${#subjAll[@]} ]; do
 
-### Run MVMs
-#
-# Runs 3 MVMs, using Snif, SPA as covariates
+# 	subj=sub-${subjAll[$c]}
+# 	file=${workDir}/${subj}/OC_stats_REML+tlrc
+# 	arrRem=(`cat ${outDir}/info_rmSubj_OC.txt`)
 
-module load r/3.6
+# 	MatchString "$subj" "${arrRem[@]}"
+# 	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
+# 		cc=0; while [ $cc -lt ${#arrOC[@]} ]; do
 
+# 			dataOC+="$subj ${groupAll[$c]} ${namOC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrOC[$cc]}]' "
+# 			let cc+=1
+# 		done
+# 	fi
+# 	let c+=1
+# done
+
+
+# unset dataSMC arrRem
+# c=0; while [ $c -lt ${#subjAll[@]} ]; do
+
+# 	subj=sub-${subjAll[$c]}
+# 	file=${workDir}/${subj}/SMC_stats_REML+tlrc
+# 	arrRem=(`cat ${outDir}/info_rmSubj_SMC.txt`)
+
+# 	MatchString "$subj" "${arrRem[@]}"
+# 	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
+# 		cc=0; while [ $cc -lt ${#arrSMC[@]} ]; do
+
+# 			dataSMC+="$subj ${groupAll[$c]} ${namSMC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrSMC[$cc]}]' "
+# 			let cc+=1
+# 		done
+# 	fi
+# 	let c+=1
+# done
+
+
+
+
+### Write scripts
 cd $outDir
 
-if [ ! -f MVM_FUMC+tlrc.HEAD ]; then
 
-	3dMVM -prefix MVM_FUMC \
-	-jobs 10 \
-	-mask $mask \
-	-bsVars 'Group*Snif+Group*SPA' \
-	-wsVars Stim \
-	-qVars 'Snif,SPA' \
-	-num_glt 4 \
-	-gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask Snif : SPA : ' \
-	-gltLabel 2 G_FBO -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*FBO Snif : SPA : ' \
-	-gltLabel 3 G_UBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*UBO Snif : SPA : ' \
-	-gltLabel 4 G_CA -gltCode 4 'Group : 1*Aut -1*Con Stim : 1*CA Snif : SPA : ' \
-	-dataTable \
-	Subj Group Stim Snif SPA InputFile \
-	$dataFUMC
-fi
+# build FUMC
+inputFUMC=$(eval echo \$dataFUMC)
 
+cat > MVM_FUMC.sh << EOF
+module load r/3.6
 
-# if [ ! -f MVM_OC+tlrc.HEAD ]; then
-
-# 	3dMVM -prefix MVM_OC \
-# 	-jobs 10 \
-# 	-mask $mask \
-# 	-bsVars 'Group*Snif+Group*SPA' \
-# 	-wsVars Stim \
-# 	-qVars 'Snif,SPA' \
-# 	-num_glt 2 \
-# 	-gltLabel 1 G_Odor -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Odor Snif : SPA : ' \
-# 	-gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA Snif : SPA : ' \
-# 	-dataTable \
-# 	Subj Group Stim Snif SPA InputFile \
-# 	$dataOC
-# fi
+3dMVM -prefix MVM_FUMC \
+-jobs 10 \
+-mask $mask \
+-bsVars 'Group*Snif+Group*SPA' \
+-wsVars Stim \
+-qVars 'Snif,SPA' \
+-num_glt 4 \
+-gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask' \
+-gltLabel 2 G_FBO -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*FBO' \
+-gltLabel 3 G_UBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*UBO' \
+-gltLabel 4 G_CA -gltCode 4 'Group : 1*Aut -1*Con Stim : 1*CA' \
+-dataTable \
+Subj Group Stim Snif SPA InputFile \
+$inputFUMC
+EOF
 
 
-# if [ ! -f MVM_SMC+tlrc.HEAD ]; then
+# build OC
+inputOC=$(eval echo \$dataOC)
 
-# 	3dMVM -prefix MVM_SMC \
-# 	-jobs 10 \
-# 	-mask $mask \
-# 	-bsVars 'Group*Snif+Group*SPA' \
-# 	-wsVars Stim \
-# 	-qVars 'Snif,SPA' \
-# 	-num_glt 3 \
-# 	-gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask Snif : SPA : ' \
-# 	-gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA Snif : SPA : ' \
-# 	-gltLabel 3 G_FUBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*FUBO Snif : SPA : ' \
-# 	-dataTable \
-# 	Subj Group Stim Snif SPA InputFile \
-# 	$dataOC
-# fi
+cat > MVM_OC.sh << EOF
+module load r/3.6
+
+3dMVM -prefix MVM_OC \
+-jobs 10 \
+-mask $mask \
+-bsVars 'Group*Snif+Group*SPA' \
+-wsVars Stim \
+-qVars 'Snif,SPA' \
+-num_glt 2 \
+-gltLabel 1 G_Odor -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Odor Snif : SPA : ' \
+-gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA Snif : SPA : ' \
+-dataTable \
+Subj Group Stim Snif SPA InputFile \
+$inputOC
+EOF
+
+
+# build SMC
+inputSMC=$(eval echo \$dataSMC)
+
+cat > MVM_SMC.sh << EOF
+module load r/3.6
+
+3dMVM -prefix MVM_SMC \
+-jobs 10 \
+-mask $mask \
+-bsVars 'Group*Snif+Group*SPA' \
+-wsVars Stim \
+-qVars 'Snif,SPA' \
+-num_glt 3 \
+-gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask Snif : SPA : ' \
+-gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA Snif : SPA : ' \
+-gltLabel 3 G_FUBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*FUBO Snif : SPA : ' \
+-dataTable \
+Subj Group Stim Snif SPA InputFile \
+$inputSMC
+EOF
+
+
+
+
+# ### Run MVMs
+# for i in FUMC OC SMC; do
+# 	if [ ! -f MVM_${i}+tlrc.HEAD ]; then
+# 		source MVM_${i}.sh
+# 	fi
+# done
