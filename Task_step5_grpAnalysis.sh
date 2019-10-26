@@ -68,8 +68,7 @@ MatchString () {
 # Exclude necessary participants
 # Only inlcude particiapnts who have the data
 # Include covariates (not mean-centered)
-# Written indivdiuall for each contrast for simplicity's sake
-
+# Generates variables dataSMC, dataFUMC, dataOC via declare
 
 for i in ${prefArr[@]}; do
 
@@ -159,6 +158,12 @@ done
 
 
 ### Write scripts
+#
+# Each analysis is written individually to make
+#    adjustments easier down the road.
+# Scripts are written for (a) review and (b) because
+#    AFNI struggles interpreting variables sometimes.
+
 cd $outDir
 
 
@@ -230,9 +235,9 @@ EOF
 
 
 
-# ### Run MVMs
-# for i in FUMC OC SMC; do
-# 	if [ ! -f MVM_${i}+tlrc.HEAD ]; then
-# 		source MVM_${i}.sh
-# 	fi
-# done
+### Run MVMs
+for i in FUMC OC SMC; do
+	if [ ! -f MVM_${i}+tlrc.HEAD ]; then
+		source MVM_${i}.sh
+	fi
+done
