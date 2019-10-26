@@ -26,12 +26,16 @@ outDir=${parDir}/Analyses/grpAnalysis						# where output will be written (shoul
 mask=${outDir}/Intersection_GM_mask+tlrc								# this will be made, just specify name for the interesection gray matter mask
 
 
+## arrays
+# all prefices
 prefArr=(FUMC OC SMC)
 
+# sub-bricks
 arrFUMC=(1 3 5 7)
 arrOC=(1 3)
 arrSMC=(1 3 5)
 
+# name assoc w/sub-brick
 namFUMC=(Mask FBO UBO CA)
 namOC=(CA Odor)
 namSMC=(CA Mask FUBO)
@@ -68,7 +72,7 @@ MatchString () {
 # Exclude necessary participants
 # Only inlcude particiapnts who have the data
 # Include covariates (not mean-centered)
-# Generates variables dataSMC, dataFUMC, dataOC via declare
+# Generates dynamic variables dataSMC, dataFUMC, dataOC via declare
 
 for i in ${prefArr[@]}; do
 
@@ -79,11 +83,12 @@ for i in ${prefArr[@]}; do
 		file=${workDir}/${subj}/${i}_stats_REML+tlrc
 		arrRem=(`cat ${outDir}/info_rmSubj_${i}.txt`)
 
-		holdBrick=($(eval echo \${arr${i}[@]}))
-		holdName=($(eval echo \${nam${i}[@]}))
-
 		MatchString "$subj" "${arrRem[@]}"
 		if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
+
+			holdBrick=($(eval echo \${arr${i}[@]}))
+			holdName=($(eval echo \${nam${i}[@]}))
+
 			cc=0; while [ $cc -lt ${#holdName[@]} ]; do
 				holdList+="$subj ${groupAll[$c]} ${holdName[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${holdBrick[$cc]}]' "
 				let cc+=1
@@ -94,65 +99,6 @@ for i in ${prefArr[@]}; do
 
 	declare $(eval echo data$i)="$holdList"
 done
-
-
-
-
-# unset dataFUMC arrRem
-# c=0; while [ $c -lt ${#subjAll[@]} ]; do
-
-# 	subj=sub-${subjAll[$c]}
-# 	file=${workDir}/${subj}/FUMC_stats_REML+tlrc
-# 	arrRem=(`cat ${outDir}/info_rmSubj_FUMC.txt`)
-
-# 	MatchString "$subj" "${arrRem[@]}"
-# 	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
-# 		cc=0; while [ $cc -lt ${#arrFUMC[@]} ]; do
-
-# 			dataFUMC+="$subj ${groupAll[$c]} ${namFUMC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrFUMC[$cc]}]' "
-# 			let cc+=1
-# 		done
-# 	fi
-# 	let c+=1
-# done
-
-
-# unset dataOC arrRem
-# c=0; while [ $c -lt ${#subjAll[@]} ]; do
-
-# 	subj=sub-${subjAll[$c]}
-# 	file=${workDir}/${subj}/OC_stats_REML+tlrc
-# 	arrRem=(`cat ${outDir}/info_rmSubj_OC.txt`)
-
-# 	MatchString "$subj" "${arrRem[@]}"
-# 	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
-# 		cc=0; while [ $cc -lt ${#arrOC[@]} ]; do
-
-# 			dataOC+="$subj ${groupAll[$c]} ${namOC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrOC[$cc]}]' "
-# 			let cc+=1
-# 		done
-# 	fi
-# 	let c+=1
-# done
-
-
-# unset dataSMC arrRem
-# c=0; while [ $c -lt ${#subjAll[@]} ]; do
-
-# 	subj=sub-${subjAll[$c]}
-# 	file=${workDir}/${subj}/SMC_stats_REML+tlrc
-# 	arrRem=(`cat ${outDir}/info_rmSubj_SMC.txt`)
-
-# 	MatchString "$subj" "${arrRem[@]}"
-# 	if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
-# 		cc=0; while [ $cc -lt ${#arrSMC[@]} ]; do
-
-# 			dataSMC+="$subj ${groupAll[$c]} ${namSMC[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${arrSMC[$cc]}]' "
-# 			let cc+=1
-# 		done
-# 	fi
-# 	let c+=1
-# done
 
 
 
@@ -203,8 +149,8 @@ module load r/3.6
 -wsVars Stim \
 -qVars 'Snif,SPA' \
 -num_glt 2 \
--gltLabel 1 G_Odor -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Odor Snif : SPA : ' \
--gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA Snif : SPA : ' \
+-gltLabel 1 G_Odor -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Odor' \
+-gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA' \
 -dataTable \
 Subj Group Stim Snif SPA InputFile \
 $inputOC
@@ -224,9 +170,9 @@ module load r/3.6
 -wsVars Stim \
 -qVars 'Snif,SPA' \
 -num_glt 3 \
--gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask Snif : SPA : ' \
--gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA Snif : SPA : ' \
--gltLabel 3 G_FUBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*FUBO Snif : SPA : ' \
+-gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask' \
+-gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA' \
+-gltLabel 3 G_FUBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*FUBO' \
 -dataTable \
 Subj Group Stim Snif SPA InputFile \
 $inputSMC
