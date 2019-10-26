@@ -71,12 +71,15 @@ MatchString () {
 #
 # Exclude necessary participants
 # Only inlcude particiapnts who have the data
-# Include covariates (not mean-centered)
+# Include covariates (not mean-centered) in data table
 # Generates dynamic variables dataSMC, dataFUMC, dataOC via declare
 
 for i in ${prefArr[@]}; do
 
 	unset hold{Brick,Name} arrRem holdList
+	holdBrick=($(eval echo \${arr${i}[@]}))
+	holdName=($(eval echo \${nam${i}[@]}))
+
 	c=0; while [ $c -lt ${#subjAll[@]} ]; do
 
 		subj=sub-${subjAll[$c]}
@@ -85,10 +88,6 @@ for i in ${prefArr[@]}; do
 
 		MatchString "$subj" "${arrRem[@]}"
 		if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
-
-			holdBrick=($(eval echo \${arr${i}[@]}))
-			holdName=($(eval echo \${nam${i}[@]}))
-
 			cc=0; while [ $cc -lt ${#holdName[@]} ]; do
 				holdList+="$subj ${groupAll[$c]} ${holdName[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${holdBrick[$cc]}]' "
 				let cc+=1
