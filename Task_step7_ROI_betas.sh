@@ -48,11 +48,9 @@ roiDir=${parDir}/Analyses/roiAnalysis
 betaDir=${roiDir}/sub_betas
 grpDir=${parDir}/Analyses/grpAnalysis
 
-tempDir=~/bin/Templates/vold2_mni
-jlfDir=${tempDir}/priors_JLF
+# tempDir=${parDir}/Template
+# jlfDir=${tempDir}/priors_JLF
 
-# priorDir=${tempDir}/priors_HipSeg
-# specDir=${tempDir}/priors_Special
 
 
 compList=(FUMC OC SMC)						# matches decon prefix
@@ -80,24 +78,28 @@ MatchString (){
 
 
 ### Make JLF masks
-mkdir -p $roiDir $betaDir
-cd $roiDir
 
-c=0; while [ $c -lt ${#jlfLabel[@]} ]; do
+####### To DO: render JLF priors
 
-	prior=${jlfDir}/label_${jlfLabel[$c]}.nii.gz
-	name=${jlfName[$c]}
 
-	if [ ! -f ${name}+tlrc.HEAD ]; then
+# mkdir -p $roiDir $betaDir
+# cd $roiDir
 
-		c3d $prior -thresh 0.3 1 1 0 -o tmp_${name}.nii.gz
-		3dfractionize -template $refFile -input tmp_${name}.nii.gz -prefix tmp_res_${name}.nii.gz
-		c3d Group_epi_mask.nii.gz tmp_res_${name}.nii.gz -multipy -o tmp_clean_${name}.nii.gz
-		3dcopy tmp_clean_${name}.nii.gz ${name}+tlrc
-		rm tmp*
-	fi
-	let c+=1
-done
+# c=0; while [ $c -lt ${#jlfLabel[@]} ]; do
+
+# 	prior=${jlfDir}/label_${jlfLabel[$c]}.nii.gz
+# 	name=${jlfName[$c]}
+
+# 	if [ ! -f ${name}+tlrc.HEAD ]; then
+
+# 		c3d $prior -thresh 0.3 1 1 0 -o tmp_${name}.nii.gz
+# 		3dfractionize -template $refFile -input tmp_${name}.nii.gz -prefix tmp_res_${name}.nii.gz
+# 		c3d ${grpDir}/Group_epi_mask.nii.gz tmp_res_${name}.nii.gz -multiply -o tmp_clean_${name}.nii.gz
+# 		3dcopy tmp_clean_${name}.nii.gz ${name}+tlrc
+# 		rm tmp*
+# 	fi
+# 	let c+=1
+# done
 
 
 
