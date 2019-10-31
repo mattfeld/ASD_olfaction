@@ -37,7 +37,7 @@ refFile=${workDir}/sub-1048/run-2_AO_scale+tlrc				# reference file, for finding
 
 tempDir=~/bin/Templates/vold2_mni							# desired template
 svLabels=(00{18,54} {1,2}{012,014,002,010,023,026})			# bilat amyg, ofc, cing
-smallMask=Intersection_GM_MTL_mask+tlrc
+smallMask=Intersection_GM_SmallVol_mask+tlrc
 svPrior=${tempDir}/priors_JLF
 
 
