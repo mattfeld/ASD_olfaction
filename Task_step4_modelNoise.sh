@@ -22,57 +22,6 @@ export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 # Written by Nathan Muncy on 11/2/18
 
 
-###--- Notes, in no particular order
-#
-# 1) does the new ETAC multiple comparison method
-#
-# 2) constructs a gray matter intersection mask
-#		depends on ACT priors
-#
-# 3) accepts multiple blurs and p-values (multiple should be used)
-#
-# 4) generates subj lists for 3dttest++, excluding subjects who moved too much (ref step3)
-#
-# 5) each etac run takes about 5 hours, so do 5*$etacLen for walltime
-#
-# 7) Notice the number of processors - I recommend updating OMP_NUM_THREADS in .afnirc
-#		ETAC has heavy memory and processor needs
-
-
-### update by Nathan Muncy on 11/30/18
-#
-# 8) Updated to support multiple pairwise comparisons
-#		- if arrays A-C exist, will do an ETAC for AvB, AvC, BvC.
-#		- will keep things straight with compList, so if you have the following:
-#
-#			compList=(first second third)
-#			arrA=(1 2 3)
-#			arrB=(11 22 33)
-#			arrC=(111 222 333)
-#			wsArr=ABC
-#
-#			then for the "first" comparison, you would get 1v11, 1v111, and 11v111
-#			and for the "second" comparison, you would get 2v22, 2v222, and 22v222, etc.
-#
-# 9) Will now write out the grpAnalysis scripts to $outDir for your review.
-#
-# 10) added notes to each section
-#
-# 11) Added a section that will run MVMs via the ACF multiple comparison method.
-#
-#			compList=(first second third)
-#			arrA=(1 2 3)
-#			arrB=(11 22 33)
-#			arrC=(111 222 333)
-#			wsArr=ABC
-#			bsArr=(Con Aut)
-#
-#			then for the "third" comparison, you would get 2(Con, Aut) x 3(3,33,333) comparison
-
-
-
-
-
 
 
 ### --- Set up --- ###										###??? update variables/arrays
@@ -213,7 +162,6 @@ arrCount=0; while [ $arrCount -lt $compLen ]; do
 			for m in stats errts; do
 
 				hold=${workDir}/${k}/${pref}_${m}_REML
-				file=${workDir}/${k}/${pref}_errts_REML_blur${blurInt}+tlrc
 
 				# blur
 				if [ ! -f ${hold}_blur${blurInt}+tlrc.HEAD ]; then
@@ -222,6 +170,7 @@ arrCount=0; while [ $arrCount -lt $compLen ]; do
 			done
 
 			# parameter estimate
+			file=${workDir}/${k}/${pref}_errts_REML_blur${blurInt}+tlrc
 			3dFWHMx -mask $mask -input $file -acf >> $print
 		done
 	fi

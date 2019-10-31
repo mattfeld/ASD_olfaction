@@ -43,11 +43,11 @@ namSMC=(CA Mask FUBO)
 
 
 
-### load arrays
+### load arrays - group and covariates
 subjAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $1}'`)
 groupAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $2}'`)
-snifAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $3}'`)
-spaAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $4}'`)
+# snifAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $3}'`)
+# spaAll=(`tail -n +2 ${stimDir}/Cov_list.txt | awk '{print $4}'`)
 
 
 
@@ -89,7 +89,8 @@ for i in ${prefArr[@]}; do
 		MatchString "$subj" "${arrRem[@]}"
 		if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
 			cc=0; while [ $cc -lt ${#holdName[@]} ]; do
-				holdList+="$subj ${groupAll[$c]} ${holdName[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${holdBrick[$cc]}]' "
+				# holdList+="$subj ${groupAll[$c]} ${holdName[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${holdBrick[$cc]}]' "
+				holdList+="$subj ${groupAll[$c]} ${holdName[$cc]} ${file}'[${holdBrick[$cc]}]' "
 				let cc+=1
 			done
 		fi
@@ -112,7 +113,30 @@ done
 cd $outDir
 
 
-# build FUMC
+# # build FUMC - with covariates
+# inputFUMC=$(eval echo \$dataFUMC)
+
+# cat > MVM_FUMC.sh << EOF
+# module load r/3.6
+
+# 3dMVM -prefix MVM_FUMC \
+# -jobs 10 \
+# -mask $mask \
+# -bsVars 'Group*Snif+Group*SPA' \
+# -wsVars Stim \
+# -qVars 'Snif,SPA' \
+# -num_glt 4 \
+# -gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask' \
+# -gltLabel 2 G_FBO -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*FBO' \
+# -gltLabel 3 G_UBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*UBO' \
+# -gltLabel 4 G_CA -gltCode 4 'Group : 1*Aut -1*Con Stim : 1*CA' \
+# -dataTable \
+# Subj Group Stim Snif SPA InputFile \
+# $inputFUMC
+# EOF
+
+
+# build FUMC - w/o covariates
 inputFUMC=$(eval echo \$dataFUMC)
 
 cat > MVM_FUMC.sh << EOF
@@ -121,16 +145,15 @@ module load r/3.6
 3dMVM -prefix MVM_FUMC \
 -jobs 10 \
 -mask $mask \
--bsVars 'Group*Snif+Group*SPA' \
+-bsVars 'Group' \
 -wsVars Stim \
--qVars 'Snif,SPA' \
 -num_glt 4 \
 -gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask' \
 -gltLabel 2 G_FBO -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*FBO' \
 -gltLabel 3 G_UBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*UBO' \
 -gltLabel 4 G_CA -gltCode 4 'Group : 1*Aut -1*Con Stim : 1*CA' \
 -dataTable \
-Subj Group Stim Snif SPA InputFile \
+Subj Group Stim InputFile \
 $inputFUMC
 EOF
 
@@ -144,14 +167,13 @@ module load r/3.6
 3dMVM -prefix MVM_OC \
 -jobs 10 \
 -mask $mask \
--bsVars 'Group*Snif+Group*SPA' \
+-bsVars 'Group' \
 -wsVars Stim \
--qVars 'Snif,SPA' \
 -num_glt 2 \
 -gltLabel 1 G_Odor -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Odor' \
 -gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA' \
 -dataTable \
-Subj Group Stim Snif SPA InputFile \
+Subj Group Stim InputFile \
 $inputOC
 EOF
 
@@ -165,15 +187,14 @@ module load r/3.6
 3dMVM -prefix MVM_SMC \
 -jobs 10 \
 -mask $mask \
--bsVars 'Group*Snif+Group*SPA' \
+-bsVars 'Group' \
 -wsVars Stim \
--qVars 'Snif,SPA' \
 -num_glt 3 \
 -gltLabel 1 G_Mask -gltCode 1 'Group : 1*Aut -1*Con Stim : 1*Mask' \
 -gltLabel 2 G_CA -gltCode 2 'Group : 1*Aut -1*Con Stim : 1*CA' \
 -gltLabel 3 G_FUBO -gltCode 3 'Group : 1*Aut -1*Con Stim : 1*FUBO' \
 -dataTable \
-Subj Group Stim Snif SPA InputFile \
+Subj Group Stim InputFile \
 $inputSMC
 EOF
 
