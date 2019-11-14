@@ -35,13 +35,11 @@ outDir=${parDir}/Analyses/grpAnalysis						# where output will be written (shoul
 refFile=${workDir}/sub-1048/run-2_AO_scale+tlrc				# reference file, for finding dimensions etc
 
 
-tempDir=~/bin/Templates/vold2_mni							# desired template
-svLabels=(00{18,54} {1,2}{012,014,002,010,023,026})			# bilat amyg, ofc, cing
-smallMask=Intersection_GM_SmallVol_mask+tlrc
-svPrior=${tempDir}/priors_JLF
+svPrior=${parDir}/Template/priors_JLF
+svLabels=(18 54 {1,2}{012,014,002,010,023,026})				# bilat amyg, ofc, cing
+smallMask=Intersection_GM_smallVol_mask+tlrc
 
 
-runIt=1														# whether ETAC/MVM scripts actually run (and not just written) (1)
 blurM=2
 compList=(FUMC OC SMC)										# matches decon prefixes, and will be prefix of output files
 
@@ -51,9 +49,7 @@ compList=(FUMC OC SMC)										# matches decon prefixes, and will be prefix of 
 
 ### function - search array for string
 MatchString () {
-
 	local e match="$1"
-
 	shift
 	for e; do
 		[[ "$e" == "$match" ]] && return 0
@@ -70,7 +66,7 @@ cd $outDir
 if [ ! -f ${smallMask}.HEAD ]; then
 
 	for i in ${svLabels[@]}; do
-		c3d ${svPrior}/label_${i}.nii.gz -thresh 0.3 1 1 0 -o tmp_label_${i}.nii.gz
+		c3d ${svPrior}/JLF_Labels.nii.gz -thresh $i $i 1 0 -o tmp_label_${i}.nii.gz
 	done
 
 	c3d tmp_label* -accum -add -endaccum -o tmp_mtl_mask.nii.gz
@@ -156,7 +152,3 @@ for i in ${compList[0]}; do
 		rm tmp
 	fi
 done
-
-
-
-
