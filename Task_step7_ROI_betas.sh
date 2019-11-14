@@ -57,7 +57,7 @@ jlfName=({L,R}_Amyg {L,R}_{{L,M}OFC,{CA,IS,P,RA}Cing})
 compList=(FUMC OC SMC)									# matches decon prefix
 refFile=${workDir}/sub-1048/${compList[0]}_stats_REML+tlrc
 
-brikFUMC=1,3,5,7											# setA beh sub-brik for etacList
+brikFUMC=1,3,5,7										# setA beh sub-brik for etacList
 brikOC=1,3												# steB
 brikSMC=1,3,5
 
@@ -87,9 +87,10 @@ c=0; while [ $c -lt ${#jlfLabel[@]} ]; do
 	if [ ! -f ${name}+tlrc.HEAD ]; then
 
 		c3d ${jlfDir}/JLF_Labels.nii.gz -thresh $label $label 1 0 -o tmp_${name}.nii.gz
-		3dfractionize -template $refFile -input tmp_${name}.nii.gz -prefix tmp_res_${name}.nii.gz
+		3dresample -master $refFile -rmode NN -input tmp_${name}.nii.gz -prefix tmp_res_${name}.nii.gz
 		c3d ${grpDir}/Group_epi_mask.nii.gz tmp_res_${name}.nii.gz -multiply -o tmp_clean_${name}.nii.gz
-		3dcopy tmp_clean_${name}.nii.gz ${name}+tlrc
+		c3d tmp_clean_${name}.nii.gz -thresh 0.1 1 1 0 -o tmp_thresh_${name}.nii.gz
+		3dcopy tmp_thresh_${name}.nii.gz ${name}+tlrc
 		rm tmp*
 	fi
 	let c+=1
