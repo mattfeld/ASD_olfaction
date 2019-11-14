@@ -24,6 +24,8 @@ workDir=${parDir}/derivatives								# par dir of data
 stimDir=${parDir}/stimuli
 outDir=${parDir}/Analyses/grpAnalysis						# where output will be written (should match step3)
 mask=${outDir}/Intersection_GM_mask+tlrc								# this will be made, just specify name for the interesection gray matter mask
+refFile=${workDir}/sub-1048/run-3_AO_scale+tlrc				# reference file, for finding dimensions etc
+blurM=2
 
 
 ## arrays
@@ -74,6 +76,11 @@ MatchString () {
 # Include covariates (not mean-centered) in data table
 # Generates dynamic variables dataSMC, dataFUMC, dataOC via declare
 
+
+gridSize=`3dinfo -dk $refFile`
+blurH=`echo $gridSize*$blurM | bc`
+blurInt=`printf "%.0f" $blurH`
+
 for i in ${prefArr[@]}; do
 
 	unset hold{Brick,Name} arrRem holdList
@@ -83,12 +90,13 @@ for i in ${prefArr[@]}; do
 	c=0; while [ $c -lt ${#subjAll[@]} ]; do
 
 		subj=sub-${subjAll[$c]}
-		file=${workDir}/${subj}/${i}_stats_REML+tlrc
+		file=${workDir}/${subj}/${i}_stats_REML_blur${blurInt}+tlrc
 		arrRem=(`cat ${outDir}/info_rmSubj_${i}.txt`)
 
 		MatchString "$subj" "${arrRem[@]}"
 		if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
 			cc=0; while [ $cc -lt ${#holdName[@]} ]; do
+
 				# holdList+="$subj ${groupAll[$c]} ${holdName[$cc]} ${snifAll[$c]} ${spaAll[$c]} ${file}'[${holdBrick[$cc]}]' "
 				holdList+="$subj ${groupAll[$c]} ${holdName[$cc]} ${file}'[${holdBrick[$cc]}]' "
 				let cc+=1
