@@ -100,43 +100,45 @@ for i in ${compList[0]}; do
 
 	outPre=${i}_MVM_REML_sv
 	print=ACF_raw_${i}_sv.txt
-	> $print
 
-	# make subj list
-	unset subjList
+	if [ ! -s $print ]; then
 
-	for j in ${workDir}/s*; do
+		# make subj list
+		unset subjList
 
-		arrRem=(`cat info_rmSubj_${i}.txt`)
-		subj=${j##*\/}
-		MatchString "$subj" "${arrRem[@]}"
+		for j in ${workDir}/s*; do
 
-		if [ $? == 1 ]; then
-			subjList+=("$subj ")
-		fi
-	done
+			arrRem=(`cat info_rmSubj_${i}.txt`)
+			subj=${j##*\/}
+			MatchString "$subj" "${arrRem[@]}"
 
-
-	# blur, determine parameter estimate
-	gridSize=`3dinfo -dk $refFile`
-	blurH=`echo $gridSize*$blurM | bc`
-	blurInt=`printf "%.0f" $blurH`
-
-	for k in ${subjList[@]}; do
-		for m in stats errts; do
-
-			hold=${workDir}/${k}/${i}_${m}_REML
-
-			# blur
-			if [ ! -f ${hold}_blur${blurInt}+tlrc.HEAD ]; then
-				3dmerge -prefix ${hold}_blur${blurInt} -1blur_fwhm $blurInt -doall ${hold}+tlrc
+			if [ $? == 1 ]; then
+				subjList+=("$subj ")
 			fi
 		done
 
-		# parameter estimate
-		file=${workDir}/${k}/${i}_errts_REML_blur${blurInt}+tlrc
-		3dFWHMx -mask $smallMask -input $file -acf >> $print
-	done
+
+		# blur, determine parameter estimate
+		gridSize=`3dinfo -dk $refFile`
+		blurH=`echo $gridSize*$blurM | bc`
+		blurInt=`printf "%.0f" $blurH`
+
+		for k in ${subjList[@]}; do
+			for m in stats errts; do
+
+				hold=${workDir}/${k}/${i}_${m}_REML
+
+				# blur
+				if [ ! -f ${hold}_blur${blurInt}+tlrc.HEAD ]; then
+					3dmerge -prefix ${hold}_blur${blurInt} -1blur_fwhm $blurInt -doall ${hold}+tlrc
+				fi
+			done
+
+			# parameter estimate
+			file=${workDir}/${k}/${i}_errts_REML_blur${blurInt}+tlrc
+			3dFWHMx -mask $smallMask -input $file -acf >> $print
+		done
+	fi
 
 
 	# simulate noise, determine thresholds

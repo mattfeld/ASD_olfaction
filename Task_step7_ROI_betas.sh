@@ -48,20 +48,18 @@ roiDir=${parDir}/Analyses/roiAnalysis
 betaDir=${roiDir}/sub_betas
 grpDir=${parDir}/Analyses/grpAnalysis
 
-# tempDir=${parDir}/Template
-# jlfDir=${tempDir}/priors_JLF
+
+jlfDir=${parDir}/Template/priors_JLF
+jlfLabel=(18 54 {1,2}{012,014,002,010,023,026})
+jlfName=({L,R}_Amyg {L,R}_{{L,M}OFC,{CA,IS,P,RA}Cing})
 
 
-
-compList=(FUMC OC SMC)						# matches decon prefix
+compList=(FUMC OC SMC)									# matches decon prefix
 refFile=${workDir}/sub-1048/${compList[0]}_stats_REML+tlrc
 
-arrA=(1 3 5 7)								# setA beh sub-brik for etacList
-arrB=(1 3)									# steB
-arrC=(1 3 5)
-
-jlfLabel=(00{18,54} {1,2}{012,014,002,010,023,026})
-jlfName=({L,R}_Amyg {L,R}_{{L,M}OFC,{CA,IS,P,RA}Cing})
+brikFUMC=1,3,5,7											# setA beh sub-brik for etacList
+brikOC=1,3												# steB
+brikSMC=1,3,5
 
 
 
@@ -78,43 +76,38 @@ MatchString (){
 
 
 ### Make JLF masks
+mkdir -p $betaDir
+cd $roiDir
 
-####### To DO: render JLF priors
+c=0; while [ $c -lt ${#jlfLabel[@]} ]; do
 
+	name=${jlfName[$c]}
+	label=${jlfLabel[$c]}
 
-# mkdir -p $roiDir $betaDir
-# cd $roiDir
+	if [ ! -f ${name}+tlrc.HEAD ]; then
 
-# c=0; while [ $c -lt ${#jlfLabel[@]} ]; do
-
-# 	prior=${jlfDir}/label_${jlfLabel[$c]}.nii.gz
-# 	name=${jlfName[$c]}
-
-# 	if [ ! -f ${name}+tlrc.HEAD ]; then
-
-# 		c3d $prior -thresh 0.3 1 1 0 -o tmp_${name}.nii.gz
-# 		3dfractionize -template $refFile -input tmp_${name}.nii.gz -prefix tmp_res_${name}.nii.gz
-# 		c3d ${grpDir}/Group_epi_mask.nii.gz tmp_res_${name}.nii.gz -multiply -o tmp_clean_${name}.nii.gz
-# 		3dcopy tmp_clean_${name}.nii.gz ${name}+tlrc
-# 		rm tmp*
-# 	fi
-# 	let c+=1
-# done
+		c3d ${jlfDir}/JLF_Labels.nii.gz -thresh $label $label 1 0 -o tmp_${name}.nii.gz
+		3dfractionize -template $refFile -input tmp_${name}.nii.gz -prefix tmp_res_${name}.nii.gz
+		c3d ${grpDir}/Group_epi_mask.nii.gz tmp_res_${name}.nii.gz -multiply -o tmp_clean_${name}.nii.gz
+		3dcopy tmp_clean_${name}.nii.gz ${name}+tlrc
+		rm tmp*
+	fi
+	let c+=1
+done
 
 
 
 
 ### Pull Betas
-for i in ${!compList[@]}; do
+for i in ${compList[@]}; do
 
-	pref=${compList[$i]}
-	scan=${pref}_stats_REML+tlrc
-	betas=${arrA[$i]},${arrB[$i]},${arrC[$i]}
-	arrRem=(`cat ${grpDir}/info_rmSubj_${pref}.txt`)
+	scan=${i}_stats_REML+tlrc
+	betas=$(eval echo \$brik$i)
+	arrRem=(`cat ${grpDir}/info_rmSubj_${i}.txt`)
 
 	for j in ${jlfName[@]}; do
 
-		print=${betaDir}/Betas_${pref}_${j}_sub.txt
+		print=${betaDir}/Betas_${i}_${j}_sub.txt
 		echo $j > $print
 
 		for k in ${workDir}/s*; do
@@ -122,6 +115,7 @@ for i in ${!compList[@]}; do
 			subj=${k##*\/}
 			MatchString $subj "${arrRem[@]}"
 			if [ $? == 1 ]; then
+
 				stats=`3dROIstats -mask ${j}+tlrc "${k}/${scan}[${betas}]"`
 				echo "$subj $stats" >> $print
 			fi
