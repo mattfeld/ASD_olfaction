@@ -3,7 +3,6 @@
 #SBATCH --time=30:00:00   # walltime
 #SBATCH --ntasks=6   # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
-#SBATCH -C 'rhel7'   # RHEL 7
 #SBATCH --mem-per-cpu=8gb   # memory per CPU core
 #SBATCH -J "TS2"   # job name
 
@@ -53,25 +52,26 @@ parDir=~/compute/AutismOlfactory					  			# parent dir, where derivatives is loc
 workDir=${parDir}/derivatives/$subj
 
 txtFile=1														# whether timing files are in txt format (1) or 1D (0)
-txtTime=1														# if txt file has block duration (1:3) for pmBLOCK (1=on)
+txtTime=0														# if txt file has block duration (1:3) for pmBLOCK (1=on)
 runDecons=1														# toggle for running reml scripts and post hoc (1=on) or just writing scripts (0)
 
 deconNum=(3)													# See Note 4 above
-deconPref=(FUMC OC SMC)										# array of prefix for each planned decon (length must equal sum of $deconNum)
+deconPref=(All{FUMC,OC,SMC})										# array of prefix for each planned decon (length must equal sum of $deconNum)
+deconLen=(3)
 
 
 # For txt timing files
 subjHold=${subj#*-}
 
-txtFUMC=(${subjHold}_{MASK,FBO,UBO,CA}.txt)
-txtOC=(${subjHold}_{CA,Odor}.txt)
-txtSMC=(${subjHold}_{CA,MASK,FUBO}.txt)
+txtAllFUMC=(${subjHold}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)
+txtAllOC=(${subjHold}_{ENI1,RI,RP,Jit1,CA,Odor}.txt)
+txtAllSMC=(${subjHold}_{ENI1,RI,RP,Jit1,CA,MASK,FUBO}.txt)
 
 
 # Label beh sub-bricks, per decon
-namFUMC=(MASK FBO UBO CA)									# "Foo" of namFoo matches a $deconPref value, one string per timing file (e.g. deconPref=(SpT1); namSpT1=(Hit CR Miss FA))
-namOC=(CA Odor)
-namSMC=(CA MASK FUBO)
+namAllFUMC=(ENI RI RP Jit MASK FBO UBO CA)									# "Foo" of namFoo matches a $deconPref value, one string per timing file (e.g. deconPref=(SpT1); namSpT1=(Hit CR Miss FA))
+namAllOC=(ENI RI RP Jit CA Odor)
+namAllSMC=(ENI RI RP Jit CA MASK FUBO)
 
 
 
@@ -155,6 +155,9 @@ fi
 
 
 ### Function - write deconvolution script
+#
+# this is a lightly adjusted version of our standard decon function
+
 GenDecon (){
 
 	# assign vars for readability
@@ -167,10 +170,7 @@ GenDecon (){
 		    local h_out=$4
 		    local h_len=$5
 
-		    for aa in {1..5}; do
-			    shift
-		    done
-
+		    shift 5
 		    local h_arr=( "$@" )
 		    local nam=(${h_arr[@]:0:$h_len})
 		    local txt=(${h_arr[@]:$h_len})
@@ -183,10 +183,7 @@ GenDecon (){
 		    local h_len=$5
 		    local h_trlen=$6
 
-		    for aa in {1..6}; do
-			    shift
-		    done
-
+		    shift 6
 		    local h_arr=( "$@" )
 		    local nam=(${h_arr[@]:0:$h_len})
 		    local txt=(${h_arr[@]:$h_len})
@@ -199,9 +196,7 @@ GenDecon (){
 	    local h_input=$5
 	    local h_out=$6
 
-	    for aa in {1..6}; do
-		    shift
-	    done
+	    shift 6
 	    local nam=( "$@" )
     fi
 
@@ -219,7 +214,7 @@ GenDecon (){
     done
 
 
-	# build behavior list
+	## build behavior list
 	unset stimBeh
 
 
@@ -233,7 +228,17 @@ GenDecon (){
 			done
 		else
 			cc=0; while [ $cc -lt ${#txt[@]} ]; do
-				stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(${h_trlen},1)\" -stim_label $x beh_${nam[$cc]} "
+
+				###### Patched here for AO study
+				if [ ${txt[$cc]} == ${subjHold}_ENI1.txt ]; then
+					stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(0.5,1)\" -stim_label $x beh_${nam[$cc]} "
+				elif [ ${txt[$cc]} == ${subjHold}_RI.txt ] || [ ${txt[$cc]} == ${subjHold}_RP.txt ]; then
+					stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(6,1)\" -stim_label $x beh_${nam[$cc]} "
+				else
+					stimBeh+="-stim_times_AM2 $x timing_files/${txt[$cc]} \"dmBLOCK(1)\" -stim_label $x beh_${nam[$cc]} "
+				fi
+
+				#stimBeh+="-stim_times $x timing_files/${txt[$cc]} \"BLOCK(${h_trlen},1)\" -stim_label $x beh_${nam[$cc]} "
 				let x=$[$x+1]
 				let cc=$[$cc+1]
 			done
@@ -266,7 +271,9 @@ GenDecon (){
     -x1D X.${h_out}.xmat.1D \
     -xjpeg X.${h_out}.jpg \
     -x1D_uncensored X.${h_out}.nocensor.xmat.1D \
-    -bucket ${h_out}_stats -errts ${h_out}_errts" > ${h_out}_deconv.sh
+    -bucket ${h_out}_stats \
+    -cbucket ${h_out}_cbucket \
+    -errts ${h_out}_errts" > ${h_out}_deconv.sh
 }
 
 
@@ -278,29 +285,29 @@ GenDecon (){
 # include mean and derivative of motion.
 
 
-c=0; while [ $c -lt $phaseLen ]; do
+# c=0; while [ $c -lt $phaseLen ]; do
 
-	phase=${phaseArr[$c]}
-	nruns=${blockArr[$c]}
+# 	phase=${phaseArr[$c]}
+# 	nruns=${blockArr[$c]}
 
-	cat dfile.run-*${phase}.1D > dfile_rall_${phase}.1D
+# 	cat dfile.run-*${phase}.1D > dfile_rall_${phase}.1D
 
-	if [ ! -s censor_${phase}_combined.1D ]; then
+# 	if [ ! -s censor_${phase}_combined.1D ]; then
 
-		# files: de-meaned, motion params (per phase)
-		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -demean -write motion_demean_${phase}.1D
-		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -derivative -demean -write motion_deriv_${phase}.1D
-		1d_tool.py -infile motion_demean_${phase}.1D -set_nruns $nruns -split_into_pad_runs mot_demean_${phase}
-		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -show_censor_count -censor_prev_TR -censor_motion 0.3 motion_${phase}
+# 		# files: de-meaned, motion params (per phase)
+# 		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -demean -write motion_demean_${phase}.1D
+# 		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -derivative -demean -write motion_deriv_${phase}.1D
+# 		1d_tool.py -infile motion_demean_${phase}.1D -set_nruns $nruns -split_into_pad_runs mot_demean_${phase}
+# 		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -show_censor_count -censor_prev_TR -censor_motion 0.3 motion_${phase}
 
 
-		# determine censor
-		cat out.cen.run-*${phase}.1D > outcount_censor_${phase}.1D
-		1deval -a motion_${phase}_censor.1D -b outcount_censor_${phase}.1D -expr "a*b" > censor_${phase}_combined.1D
-	fi
+# 		# determine censor
+# 		cat out.cen.run-*${phase}.1D > outcount_censor_${phase}.1D
+# 		1deval -a motion_${phase}_censor.1D -b outcount_censor_${phase}.1D -expr "a*b" > censor_${phase}_combined.1D
+# 	fi
 
-	let c=$[$c+1]
-done
+# 	let c=$[$c+1]
+# done
 
 
 
@@ -524,15 +531,15 @@ fi
 
 
 
-# clean
-if [ $testMode == 1 ]; then
-	rm tmp_*
-	rm -r a*
-	rm final_mask_{CSF,GM}*
-	rm *corr_brain*
-	rm *gmean_errts*
-	rm *volreg*
-	rm Temp*
-	rm *WMe_rall*
-	rm full_mask.*
-fi
+# # clean
+# if [ $testMode == 1 ]; then
+# 	rm tmp_*
+# 	rm -r a*
+# 	rm final_mask_{CSF,GM}*
+# 	rm *corr_brain*
+# 	rm *gmean_errts*
+# 	rm *volreg*
+# 	rm Temp*
+# 	rm *WMe_rall*
+# 	rm full_mask.*
+# fi

@@ -30,17 +30,17 @@ blurM=2
 
 ## arrays
 # all prefices
-prefArr=(FUMC OC SMC)
+prefArr=(All{FUMC,OC,SMC})
 
 # sub-bricks
-arrFUMC=(1 3 5 7)
-arrOC=(1 3)
-arrSMC=(1 3 5)
+arrAllFUMC=(9 11 13 15)
+arrAllOC=(9 11)
+arrAllSMC=(9 11 13)
 
 # name assoc w/sub-brick
-namFUMC=(Mask FBO UBO CA)
-namOC=(CA Odor)
-namSMC=(CA Mask FUBO)
+namAllFUMC=(Mask FBO UBO CA)
+namAllOC=(CA Odor)
+namAllSMC=(CA Mask FUBO)
 
 
 
@@ -91,7 +91,7 @@ for i in ${prefArr[@]}; do
 
 		subj=sub-${subjAll[$c]}
 		file=${workDir}/${subj}/${i}_stats_REML_blur${blurInt}+tlrc
-		arrRem=(`cat ${outDir}/info_rmSubj_${i}.txt`)
+		arrRem=(`cat ${outDir}/info_rmSubj_${i/All}.txt`)
 
 		MatchString "$subj" "${arrRem[@]}"
 		if [ $? == 1 ] && [ -f ${file}.HEAD ]; then
@@ -145,12 +145,12 @@ cd $outDir
 
 
 # build FUMC - w/o covariates
-inputFUMC=$(eval echo \$dataFUMC)
+inputFUMC=$(eval echo \$dataAllFUMC)
 
-cat > MVM_FUMC.sh << EOF
+cat > MVM_AllFUMC.sh << EOF
 module load r/3.6
 
-3dMVM -prefix MVM_FUMC \
+3dMVM -prefix MVM_AllFUMC \
 -jobs 10 \
 -mask $mask \
 -bsVars 'Group' \
@@ -167,12 +167,12 @@ EOF
 
 
 # build OC
-inputOC=$(eval echo \$dataOC)
+inputOC=$(eval echo \$dataAllOC)
 
-cat > MVM_OC.sh << EOF
+cat > MVM_AllOC.sh << EOF
 module load r/3.6
 
-3dMVM -prefix MVM_OC \
+3dMVM -prefix MVM_AllOC \
 -jobs 10 \
 -mask $mask \
 -bsVars 'Group' \
@@ -187,12 +187,12 @@ EOF
 
 
 # build SMC
-inputSMC=$(eval echo \$dataSMC)
+inputSMC=$(eval echo \$dataAllSMC)
 
-cat > MVM_SMC.sh << EOF
+cat > MVM_AllSMC.sh << EOF
 module load r/3.6
 
-3dMVM -prefix MVM_SMC \
+3dMVM -prefix MVM_AllSMC \
 -jobs 10 \
 -mask $mask \
 -bsVars 'Group' \
@@ -210,7 +210,7 @@ EOF
 
 
 ### Run MVMs
-for i in FUMC OC SMC; do
+for i in All{FUMC,OC,SMC}; do
 	if [ ! -f MVM_${i}+tlrc.HEAD ]; then
 		source MVM_${i}.sh
 	fi

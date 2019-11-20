@@ -4,7 +4,7 @@
 #SBATCH --ntasks=6   # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
 #SBATCH --mem-per-cpu=8gb   # memory per CPU core
-#SBATCH -J "PPI4"   # job name
+#SBATCH -J "PPI1"   # job name
 
 # Compatibility variables for PBS. Delete if not needed.
 export PBS_NODEFILE=`/fslapps/fslutils/generate_pbs_nodefile`
@@ -24,6 +24,8 @@ export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 #
 # This script will extract the behavioral timeseries, and generate
 # correlation matrices for each seed.
+#
+# Assumes that data have been deconvolved (follows Task_step2)
 
 
 
@@ -40,7 +42,7 @@ export OMP_NUM_THREADS=$SLURM_CPUS_ON_NODE
 workDir=~/compute/AutismOlfactory
 tempDir=${workDir}/Template
 scriptDir=${workDir}/Scripts
-timingDir=${workDir}/derivatives/TimingFiles
+timingDir=${workDir}/stimuli/TimingFiles
 
 
 # Subject Variables
@@ -51,7 +53,7 @@ cleanMode=$2
 
 
 ## Deconvolution variables												# Prefix of decons run in step2
-deconList=(FUMC FUMvC FUvC)
+deconList=(FUMC OC SMC)
 
 # For txt timing files													# Same as in step2
 txtFUMC=(${string}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)
@@ -535,14 +537,14 @@ done
 
 
 
-# clean
-if [ $cleanMode == 1 ]; then
-	rm tmp_*
-	rm -r a*
-	rm final_mask_{CSF,GM}*
-	rm *corr_brain*
-	rm *gmean_errts*
-	rm *volreg*
-	rm Temp*
-	rm full_mask.*
-fi
+# # clean
+# if [ $cleanMode == 1 ]; then
+# 	rm tmp_*
+# 	rm -r a*
+# 	rm final_mask_{CSF,GM}*
+# 	rm *corr_brain*
+# 	rm *gmean_errts*
+# 	rm *volreg*
+# 	rm Temp*
+# 	rm full_mask.*
+# fi

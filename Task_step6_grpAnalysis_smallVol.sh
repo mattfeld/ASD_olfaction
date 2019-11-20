@@ -41,7 +41,7 @@ smallMask=Intersection_GM_smallVol_mask+tlrc
 
 
 blurM=2
-compList=(FUMC OC SMC)										# matches decon prefixes, and will be prefix of output files
+compList=(All{FUMC,OC,SMC})										# matches decon prefixes, and will be prefix of output files
 
 
 
