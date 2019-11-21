@@ -44,7 +44,6 @@ tempDir=${workDir}/Template
 scriptDir=${workDir}/Scripts
 timingDir=${workDir}/stimuli/TimingFiles
 
-
 # Subject Variables
 subj=$1
 string=${subj#*-}
@@ -52,29 +51,33 @@ ppiDir=${workDir}/derivatives/${subj}
 cleanMode=$2
 
 
+
 ## Deconvolution variables												# Prefix of decons run in step2
-deconList=(FUMC OC SMC)
+deconList=(All{FUMC,OC,SMC})
 
 # For txt timing files													# Same as in step2
 txtFUMC=(${string}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)
 txtFUMvC=(${string}_{ENI1,RI,RP,Jit1,CA,Odor}.txt)
 txtFUvC=(${string}_{ENI1,RI,RP,Jit1,CA,MASK,FUBO}.txt)
 
-# Label beh sub-bricks, per decon										# Same as in step2
+# Label beh sub-bricks, per decon										# Same as in step2 - it is important to have all modelled sub-bricks from decon step, not just the sub-bricks of interest
 namFUMC=(ENI RI RP Jit MASK FBO UBO CA)
-namFUMvC=(ENI RI RP Jit CA Odor)
-namFUvC=(ENI RI RP Jit CA MASK FUBO)
+namOC=(ENI RI RP Jit CA Odor)
+namSMC=(ENI RI RP Jit CA MASK FUBO)
 
 
-## PPI variables														# All desirable sub-brick labels from step2 output
+
+## PPI variables														# All desirable sub-brick labels from step2 output. Must match behaviors in namFoo
 behInterest=(MASK FBO UBO CA Odor)
 
 arrFUMC=(Mask FBO UBO CA)												# Behaviors to be extracted from each TS, per decon
-arrFUMvC=(CA Odor)
-arrFUvC=(CA Mask FUBO)
+arrOC=(CA Odor)
+arrSMC=(CA Mask FUBO)
 
-seedCoord=("-29 1 -18" "27 2 -21" "20 -3 -14" "-23 -4 -13" "46 44 23" "20 -81 41" "-32 -76 39" "-42 -75 36" "-66 -12 25" "57 -54 -12")												# Seed coordinates
-seedName=(LPF RPF 1 2 5 7 8a 8b 9 10)									# Seed prefix
+# seedCoord=("-29 1 -18" "27 2 -21" "20 -3 -14" "-23 -4 -13" "46 44 23" "20 -81 41" "-32 -76 39" "-42 -75 36" "-66 -12 25" "57 -54 -12")												# Seed coordinates
+# seedName=(LPF RPF 1 2 5 7 8a 8b 9 10)									# Seed prefix
+seedCoord=("-29 1 -18" "27 2 -21" "-22 -4 -21" "20 -4 -20")
+seedName=(LPF RPF LAmg RAmg)
 seedLen=${#seedCoord[@]}
 
 
@@ -282,6 +285,10 @@ fi
 
 
 ### Create behavior vectors
+#
+# This section is written specifically for
+# the South Autism Olfaction study
+
 if [ ! -s Beh_FUBO_contrast.1D ]; then
 
 	cp ${timingDir}/Contrast/${string}_ppi.txt .
@@ -368,7 +375,7 @@ done
 # Then the TS is downsampled and reconvolved with BOLD to generate
 # a task-associated BOLD TS.
 #
-# Much of this is specific to the AutismOlfactory study
+# Much of this is specific to the AutismOlfactory study!
 
 
 # Get seed TS from e/deconvolution
