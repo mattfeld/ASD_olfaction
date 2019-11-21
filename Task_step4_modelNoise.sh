@@ -79,48 +79,48 @@ MatchString () {
 
 cd $outDir
 
-# # intersection mask
-# if [ ! -f Group_epi_mask.nii.gz ]; then
+# intersection mask
+if [ ! -f Group_epi_mask.nii.gz ]; then
 
-# 	for i in ${workDir}/s*; do
-# 		subj=${i##*\/}
-# 		MatchString "$subj" "${arrRem[@]}"
-# 		if [ $? == 1 ]; then
-# 			list+="${i}/mask_epi_anat+tlrc "
-# 		fi
-# 	done
+	for i in ${workDir}/s*; do
+		subj=${i##*\/}
+		MatchString "$subj" "${arrRem[@]}"
+		if [ $? == 1 ]; then
+			list+="${i}/mask_epi_anat+tlrc "
+		fi
+	done
 
-# 	3dMean -prefix ${outDir}/Group_epi_mean.nii.gz $list
-# 	3dmask_tool -input $list -frac $thr -prefix ${outDir}/Group_epi_mask.nii.gz
-# fi
-
-
-# # make $mask
-# if [ ! -f ${mask}.HEAD ]; then
-
-# 	# GM mask
-# 	c3d ${priorDir}/Prior2.nii.gz ${priorDir}/Prior4.nii.gz -add -o tmp_Prior_GM.nii.gz
-# 	3dresample -master $refFile -rmode NN -input tmp_Prior_GM.nii.gz -prefix tmp_Template_GM_mask.nii.gz
-
-# 	# combine GM and intersection mask
-# 	c3d tmp_Template_GM_mask.nii.gz Group_epi_mask.nii.gz -multiply -o tmp_Intersection_GM_prob_mask.nii.gz
-# 	c3d tmp_Intersection_GM_prob_mask.nii.gz -thresh 0.1 1 1 0 -o tmp_Intersection_GM_mask.nii.gz
-# 	3dcopy tmp_Intersection_GM_mask.nii.gz $mask
-# 	rm tmp*
-# fi
-
-# if [ ! -f ${mask}.HEAD ]; then
-# 	echo >&2
-# 	echo "Could not construct $mask. Exit 5" >&2
-# 	echo >&2
-# 	exit 5
-# fi
+	3dMean -prefix ${outDir}/Group_epi_mean.nii.gz $list
+	3dmask_tool -input $list -frac $thr -prefix ${outDir}/Group_epi_mask.nii.gz
+fi
 
 
-# # get template
-# if [ ! -f vold2_mni_brain+tlrc.HEAD ]; then
-# 	cp ${tempDir}/AO_template_brain+tlrc* .
-# fi
+# make $mask
+if [ ! -f ${mask}.HEAD ]; then
+
+	# GM mask
+	c3d ${priorDir}/Prior2.nii.gz ${priorDir}/Prior4.nii.gz -add -o tmp_Prior_GM.nii.gz
+	3dresample -master $refFile -rmode NN -input tmp_Prior_GM.nii.gz -prefix tmp_Template_GM_mask.nii.gz
+
+	# combine GM and intersection mask
+	c3d tmp_Template_GM_mask.nii.gz Group_epi_mask.nii.gz -multiply -o tmp_Intersection_GM_prob_mask.nii.gz
+	c3d tmp_Intersection_GM_prob_mask.nii.gz -thresh 0.1 1 1 0 -o tmp_Intersection_GM_mask.nii.gz
+	3dcopy tmp_Intersection_GM_mask.nii.gz $mask
+	rm tmp*
+fi
+
+if [ ! -f ${mask}.HEAD ]; then
+	echo >&2
+	echo "Could not construct $mask. Exit 5" >&2
+	echo >&2
+	exit 5
+fi
+
+
+# get template
+if [ ! -f vold2_mni_brain+tlrc.HEAD ]; then
+	cp ${tempDir}/AO_template_brain+tlrc* .
+fi
 
 
 
@@ -136,8 +136,8 @@ cd $outDir
 arrCount=0; while [ $arrCount -lt $compLen ]; do
 
 	pref=${compList[$arrCount]}
-	# print=ACF_raw_${pref}.txt
-	# outPre=${pref}_MVM_REML
+	print=ACF_raw_${pref}.txt
+	outPre=${pref}_MVM_REML
 
 	# make subj list
 	unset subjList
@@ -157,7 +157,7 @@ arrCount=0; while [ $arrCount -lt $compLen ]; do
 	blurH=`echo $gridSize*$blurM | bc`
 	blurInt=`printf "%.0f" $blurH`
 
-	# if [ ! -s $print ]; then
+	if [ ! -s $print ]; then
 		for k in ${subjList[@]}; do
 			for m in stats errts; do
 
@@ -170,24 +170,24 @@ arrCount=0; while [ $arrCount -lt $compLen ]; do
 			done
 
 			# parameter estimate
-			# file=${workDir}/${k}/${pref}_errts_REML_blur${blurInt}+tlrc
-			# 3dFWHMx -mask $mask -input $file -acf >> $print
+			file=${workDir}/${k}/${pref}_errts_REML_blur${blurInt}+tlrc
+			3dFWHMx -mask $mask -input $file -acf >> $print
 		done
-	# fi
+	fi
 
 
-	# # simulate noise, determine thresholds
-	# if [ ! -s ACF_MC_${pref}.txt ]; then
+	# simulate noise, determine thresholds
+	if [ ! -s ACF_MC_${pref}.txt ]; then
 
-	# 	sed '/ 0  0  0    0/d' $print > tmp
+		sed '/ 0  0  0    0/d' $print > tmp
 
-	# 	xA=`awk '{ total += $1 } END { print total/NR }' tmp`
-	# 	xB=`awk '{ total += $2 } END { print total/NR }' tmp`
-	# 	xC=`awk '{ total += $3 } END { print total/NR }' tmp`
+		xA=`awk '{ total += $1 } END { print total/NR }' tmp`
+		xB=`awk '{ total += $2 } END { print total/NR }' tmp`
+		xC=`awk '{ total += $3 } END { print total/NR }' tmp`
 
-	# 	3dClustSim -mask $mask -LOTS -iter 10000 -acf $xA $xB $xC > ACF_MC_${pref}.txt
-	# 	rm tmp
-	# fi
+		3dClustSim -mask $mask -LOTS -iter 10000 -acf $xA $xB $xC > ACF_MC_${pref}.txt
+		rm tmp
+	fi
 
 	let arrCount=$[$arrCount+1]
 done

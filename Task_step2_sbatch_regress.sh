@@ -285,29 +285,29 @@ GenDecon (){
 # include mean and derivative of motion.
 
 
-# c=0; while [ $c -lt $phaseLen ]; do
+c=0; while [ $c -lt $phaseLen ]; do
 
-# 	phase=${phaseArr[$c]}
-# 	nruns=${blockArr[$c]}
+	phase=${phaseArr[$c]}
+	nruns=${blockArr[$c]}
 
-# 	cat dfile.run-*${phase}.1D > dfile_rall_${phase}.1D
+	cat dfile.run-*${phase}.1D > dfile_rall_${phase}.1D
 
-# 	if [ ! -s censor_${phase}_combined.1D ]; then
+	if [ ! -s censor_${phase}_combined.1D ]; then
 
-# 		# files: de-meaned, motion params (per phase)
-# 		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -demean -write motion_demean_${phase}.1D
-# 		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -derivative -demean -write motion_deriv_${phase}.1D
-# 		1d_tool.py -infile motion_demean_${phase}.1D -set_nruns $nruns -split_into_pad_runs mot_demean_${phase}
-# 		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -show_censor_count -censor_prev_TR -censor_motion 0.3 motion_${phase}
+		# files: de-meaned, motion params (per phase)
+		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -demean -write motion_demean_${phase}.1D
+		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -derivative -demean -write motion_deriv_${phase}.1D
+		1d_tool.py -infile motion_demean_${phase}.1D -set_nruns $nruns -split_into_pad_runs mot_demean_${phase}
+		1d_tool.py -infile dfile_rall_${phase}.1D -set_nruns $nruns -show_censor_count -censor_prev_TR -censor_motion 0.3 motion_${phase}
 
 
-# 		# determine censor
-# 		cat out.cen.run-*${phase}.1D > outcount_censor_${phase}.1D
-# 		1deval -a motion_${phase}_censor.1D -b outcount_censor_${phase}.1D -expr "a*b" > censor_${phase}_combined.1D
-# 	fi
+		# determine censor
+		cat out.cen.run-*${phase}.1D > outcount_censor_${phase}.1D
+		1deval -a motion_${phase}_censor.1D -b outcount_censor_${phase}.1D -expr "a*b" > censor_${phase}_combined.1D
+	fi
 
-# 	let c=$[$c+1]
-# done
+	let c=$[$c+1]
+done
 
 
 
