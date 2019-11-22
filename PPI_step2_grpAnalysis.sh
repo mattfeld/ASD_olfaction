@@ -101,7 +101,10 @@ c=0; for i in ${!covSubj[@]}; do
 done
 
 
-# blur ppi
+
+### --- Get data Ready --- ###
+
+## blur and z-transform ppi
 cd $workDir
 
 gridSize=`3dinfo -dk $refFile`
@@ -109,10 +112,29 @@ blurH=`echo $gridSize*$blurM | bc`
 blurInt=`printf "%.0f" $blurH`
 
 for i in ${subjList[@]}; do
-	for j in ${i}/PPI*stats_REML+tlrc.HEAD; do
-		file=${j%+*}
-		if [ ! -f ${file}_blur${blurInt}+tlrc.HEAD ]; then
-			3dmerge -prefix ${file}_blur${blurInt} -1blur_fwhm $blurInt -doall ${j%.*}
+
+	# blur
+	for j in ${i}/PPI*{stats,errts}_REML+tlrc.HEAD; do
+		if [ ! -f ${j%+*}_blur${blurInt}+tlrc.HEAD ]; then
+			3dmerge -prefix ${j%+*}_blur${blurInt} -1blur_fwhm $blurInt -doall ${j%.*}
+		fi
+	done
+
+	# Z-trans via Fischer
+	for k in ${i}/PPI*stats_REML_blur${blurInt}+tlrc.HEAD; do
+
+		file=${k##*\/}
+		if [ ! -f ${i}/ZTrans_$file ]; then
+			3dcalc -a ${k%.*} -expr 'log((1+a)/(1-a))/2' -prefix ${i}/ZTrans_${file%+*}
+		fi
+
+		# check
+		if [ ! -f ${i}/ZTrans_$file ]; then
+			echo >&2
+			echo "Missing file: ${i}/ZTrans_$file" >&2
+			echo "Exiting ..." >&2
+			echo >&2
+			exit 1
 		fi
 	done
 done
@@ -141,7 +163,7 @@ for i in ${compList[@]}; do
 
 			subj=${subjList[$c]}
 			group=${groupList[$c]}
-			file=${workDir}/${subj}/PPI_${i}_${j}_stats_REML_blur${blurInt}+tlrc
+			file=${workDir}/${subj}/ZTrans_PPI_${i}_${j}_stats_REML_blur${blurInt}+tlrc
 
 			if [ -f ${file}.HEAD ]; then
 				cc=0; while [ $cc -lt ${#holdName[@]} ]; do
@@ -238,17 +260,53 @@ EOF
 done
 
 
-### run scripts
-for i in MVM*.sh; do
-	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
-		source $i
-	fi
+# ### run scripts
+# for i in MVM*.sh; do
+# 	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
+# 		source $i
+# 	fi
 
-	# check
-	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
-		echo >&2
-		echo "Error: ${i%.*}+tlrc not detected. Exiting..." >&2
-		echo >&2
-		exit 2
-	fi
-done
+# 	# check
+# 	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
+# 		echo >&2
+# 		echo "Error: ${i%.*}+tlrc not detected. Exiting..." >&2
+# 		echo >&2
+# 		exit 2
+# 	fi
+# done
+
+
+
+
+# ### --- Monte Carlo --- ###
+
+
+# for i in ${compList[@]}; do
+# 	for j in ${seedName[@]}; do
+
+# 		# pull parameter estimate
+# 		print=ACF_raw_${i}_${j}.txt
+# 		if [ ! -s $print ]; then
+# 			> $print
+# 			for k in ${subjList[@]}; do
+# 				file=${workDir}/${k}/PPI_${i}_${j}_errts_REML_blur${blurInt}+tlrc
+# 				3dFWHMx -mask $mask -input $file -acf >> $print
+# 			done
+# 		fi
+
+
+# 		# run simultaions
+# 		if [ ! -s ${print/raw/MC} ]; then
+
+# 			sed '/ 0  0  0    0/d' $print > tmp
+
+# 			xA=`awk '{ total += $1 } END { print total/NR }' tmp`
+# 			xB=`awk '{ total += $2 } END { print total/NR }' tmp`
+# 			xC=`awk '{ total += $3 } END { print total/NR }' tmp`
+
+# 			3dClustSim -mask $mask -LOTS -iter 10000 -acf $xA $xB $xC > ${print/raw/MC}
+# 			rm tmp
+# 		fi
+# 	done
+# done
+
