@@ -96,8 +96,8 @@ c=0; for i in ${!covSubj[@]}; do
 	if [ $? == 1 ] && [ -d ${workDir}/$subj ]; then
 		subjList[$c]=$subj
 		groupList[$c]=${covGroup[$i]}
+		let c+=1
 	fi
-	let c+=1
 done
 
 
@@ -143,7 +143,7 @@ for i in ${compList[@]}; do
 			group=${groupList[$c]}
 			file=${workDir}/${subj}/PPI_${i}_${j}_stats_REML_blur${blurInt}+tlrc
 
-			if [ -f $file ]; then
+			if [ -f ${file}.HEAD ]; then
 				cc=0; while [ $cc -lt ${#holdName[@]} ]; do
 
 					beh=${holdName[$cc]}
@@ -157,6 +157,7 @@ for i in ${compList[@]}; do
 				echo "File not found: $file" >&2
 				echo "Exiting..." >&2
 				echo >&2
+				exit 1
 			fi
 			let c+=1
 		done
@@ -166,7 +167,6 @@ for i in ${compList[@]}; do
 done
 
 
-
 ### MVM scripts for each Seed X comparison.
 # Invidual comparisons are hardcoded
 cd $ppiDir
@@ -174,9 +174,11 @@ cd $ppiDir
 for i in ${seedName[@]}; do
 
 	# get datasets - partially unpack dynamic vars
-	inputFUMC=$(eval echo \$dataFUMC_$i)
-	inputOC=$(eval echo \$dataOC_$i)
-	inputSMC=$(eval echo \$dataSMC_$i)
+	inputFUMC=$(eval echo \$dataAllFUMC_$i)
+	inputOC=$(eval echo \$dataAllOC_$i)
+	inputSMC=$(eval echo \$dataAllSMC_$i)
+
+	echo $inputFUMC > ${ppiDir}/${i}.txt
 
 
 	# Write scripts
@@ -236,16 +238,17 @@ EOF
 done
 
 
-# ### run scripts
-# for i in MVM*.sh; do
-# 	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
-# 		source $i
-# 	fi
+### run scripts
+for i in MVM*.sh; do
+	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
+		source $i
+	fi
 
-# 	# check
-# 	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
-# 		echo >&2
-# 		echo "Error: ${i%.*}+tlrc not detected. Exiting..." >&2
-# 		echo >&2
-# 	fi
-# done
+	# check
+	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
+		echo >&2
+		echo "Error: ${i%.*}+tlrc not detected. Exiting..." >&2
+		echo >&2
+		exit 2
+	fi
+done
