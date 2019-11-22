@@ -56,23 +56,23 @@ cleanMode=$2
 deconList=(All{FUMC,OC,SMC})
 
 # For txt timing files													# Same as in step2
-txtFUMC=(${string}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)
-txtFUMvC=(${string}_{ENI1,RI,RP,Jit1,CA,Odor}.txt)
-txtFUvC=(${string}_{ENI1,RI,RP,Jit1,CA,MASK,FUBO}.txt)
+txtAllFUMC=(${string}_{ENI1,RI,RP,Jit1,MASK,FBO,UBO,CA}.txt)
+txtAllOC=(${string}_{ENI1,RI,RP,Jit1,CA,Odor}.txt)
+txtAllSMC=(${string}_{ENI1,RI,RP,Jit1,CA,MASK,FUBO}.txt)
 
 # Label beh sub-bricks, per decon										# Same as in step2 - it is important to have all modelled sub-bricks from decon step, not just the sub-bricks of interest
-namFUMC=(ENI RI RP Jit MASK FBO UBO CA)
-namOC=(ENI RI RP Jit CA Odor)
-namSMC=(ENI RI RP Jit CA MASK FUBO)
+namAllFUMC=(ENI RI RP Jit MASK FBO UBO CA)
+namAllOC=(ENI RI RP Jit CA Odor)
+namAllSMC=(ENI RI RP Jit CA MASK FUBO)
 
 
 
 ## PPI variables														# All desirable sub-brick labels from step2 output. Must match behaviors in namFoo
 behInterest=(MASK FBO UBO CA Odor)
 
-arrFUMC=(Mask FBO UBO CA)												# Behaviors to be extracted from each TS, per decon
-arrOC=(CA Odor)
-arrSMC=(CA Mask FUBO)
+arrAllFUMC=(Mask FBO UBO CA)												# Behaviors to be extracted from each TS, per decon
+arrAllOC=(CA Odor)
+arrAllSMC=(CA Mask FUBO)
 
 # seedCoord=("-29 1 -18" "27 2 -21" "20 -3 -14" "-23 -4 -13" "46 44 23" "20 -81 41" "-32 -76 39" "-42 -75 36" "-66 -12 25" "57 -54 -12")												# Seed coordinates
 # seedName=(LPF RPF 1 2 5 7 8a 8b 9 10)									# Seed prefix
@@ -304,7 +304,6 @@ if [ ! -s Beh_FUBO_contrast.1D ]; then
 
 		value=`sed -n ${a}p ${string}_ppi.txt`
 
-
 		# FBO & UBO
 		if [ $value == 1 ]; then
 			echo "1" >> FBO_contrast.txt
@@ -426,7 +425,6 @@ done
 ### Extract behavior TS from appropriate deconv from e/seed
 for i in ${deconList[@]}; do
 
-
 	# pull nested array info
 	conList=($(eval echo \${arr${i}[@]}))
 
@@ -448,7 +446,7 @@ for i in ${deconList[@]}; do
 
 
 				# check
-				if [ ! -f Seed_${k}_${i}_TS_${j}.1D ]; then
+				if [ ! -s Seed_${k}_${i}_TS_${j}.1D ]; then
 					echo >&2
 					echo "Creating Seed_${k}_${i}_TS_${j}.1D failed. Exit 3." >&2
 					echo >&2
@@ -540,18 +538,3 @@ c=0; while [ $c -lt $phaseLen ]; do
 	done
 	let c=$[$c+1]
 done
-
-
-
-
-# # clean
-# if [ $cleanMode == 1 ]; then
-# 	rm tmp_*
-# 	rm -r a*
-# 	rm final_mask_{CSF,GM}*
-# 	rm *corr_brain*
-# 	rm *gmean_errts*
-# 	rm *volreg*
-# 	rm Temp*
-# 	rm full_mask.*
-# fi
