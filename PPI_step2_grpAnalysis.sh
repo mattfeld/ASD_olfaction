@@ -37,15 +37,15 @@ refFile=${workDir}/sub-1048/run-1_AO_scale+tlrc				# reference file, for finding
 
 tempDir=${parDir}/Template									# desired template
 priorDir=${tempDir}/priors_ACT								# location of atropos priors
-mask=${outDir}/Intersection_GM_mask+tlrc								# this will be made, just specify name for the interesection gray matter mask
+mask=${outDir}/Intersection_GM_mask+tlrc					# this will be made, just specify name for the interesection gray matter mask
 
 
 # Decon Vars
-compList=(All{FUMC,OC,SMC})												# matches decon prefixes, and will be prefix of output files
+compList=(All{FUMC,OC,SMC})									# matches decon prefixes, and will be prefix of output files
 
-arrAllFUMC=(9 11 13 15)
-arrAllOC=(9 11)
-arrAllSMC=(9 11 13)
+brkAllFUMC=(31 34 37 40)									# interaction (Int) R-SQUARED sub-bricks, for Z-transforming
+brkAllOC=(25 28)
+brkAllSMC=(28 31 34)
 
 namAllFUMC=(Mask FBO UBO CA)
 namAllOC=(CA Odor)
@@ -120,22 +120,33 @@ for i in ${subjList[@]}; do
 		fi
 	done
 
+
 	# Z-trans via Fischer
 	for k in ${i}/PPI*stats_REML_blur${blurInt}+tlrc.HEAD; do
 
 		file=${k##*\/}
-		if [ ! -f ${i}/ZTrans_$file ]; then
-			3dcalc -a ${k%.*} -expr 'log((1+a)/(1-a))/2' -prefix ${i}/ZTrans_${file%+*}
-		fi
+		tmp=${file#*_}
+		deconString=${tmp%%_*}
 
-		# check
-		if [ ! -f ${i}/ZTrans_$file ]; then
-			echo >&2
-			echo "Missing file: ${i}/ZTrans_$file" >&2
-			echo "Exiting ..." >&2
-			echo >&2
-			exit 1
-		fi
+		tmpBrick=($(eval echo \${brk${deconString}[@]}))
+		tmpName=($(eval echo \${nam${deconString}[@]}))
+
+		c=0; while [ $c -lt ${#tmpBrick[@]} ]; do
+			if [ ! -f ${i}/ZTrans_${tmpName[$c]}_$file ]; then
+				3dcalc -a ${k%.*}[${tmpBrick[$c]}] -expr 'log((1+a)/(1-a))/2' -prefix ${i}/ZTrans_${tmpName[$c]}_${file%+*}
+			fi
+
+			# check
+			if [ ! -f ${i}/ZTrans_${tmpName[$c]}_$file ]; then
+				echo >&2
+				echo "Missing file: ${i}/ZTrans_$file" >&2
+				echo "Exiting ..." >&2
+				echo >&2
+				exit 1
+			fi
+
+			let c+=1
+		done
 	done
 done
 
@@ -146,14 +157,13 @@ done
 #
 # Rather than generate entire MVM scripts, I'm going to hard-code some sections
 
-
 ### Generate variables that are dynamically named (e.g. dataFUMC_LPF) which
 # contains the input dataTable for each PPI comparison X seed X behavior
 # to feed to 3dMVM
+
 for i in ${compList[@]}; do
 
-	unset hold{Brick,Name}
-	holdBrick=($(eval echo \${arr${i}[@]}))
+	unset holdName
 	holdName=($(eval echo \${nam${i}[@]}))
 
 	for j in ${seedName[@]}; do
@@ -163,24 +173,22 @@ for i in ${compList[@]}; do
 
 			subj=${subjList[$c]}
 			group=${groupList[$c]}
-			file=${workDir}/${subj}/ZTrans_PPI_${i}_${j}_stats_REML_blur${blurInt}+tlrc
 
-			if [ -f ${file}.HEAD ]; then
-				cc=0; while [ $cc -lt ${#holdName[@]} ]; do
+			for k in ${holdName[@]}; do
 
-					beh=${holdName[$cc]}
-					brick=${holdBrick[$cc]}
+				file=${workDir}/${subj}/ZTrans_${k}_PPI_${i}_${j}_stats_REML_blur${blurInt}+tlrc
 
-					holdList+="$subj $group $beh ${file}'[$brick]' "
-					let cc+=1
-				done
-			else
-				echo >&2
-				echo "File not found: $file" >&2
-				echo "Exiting..." >&2
-				echo >&2
-				exit 1
-			fi
+				if [ -f ${file}.HEAD ]; then
+					holdList+="$subj $group $k ${file}'[0]' "
+				else
+					echo >&2
+					echo "File not found: $file" >&2
+					echo "Exiting..." >&2
+					echo >&2
+					exit 1
+				fi
+			done
+
 			let c+=1
 		done
 
@@ -200,7 +208,7 @@ for i in ${seedName[@]}; do
 	inputOC=$(eval echo \$dataAllOC_$i)
 	inputSMC=$(eval echo \$dataAllSMC_$i)
 
-	echo $inputFUMC > ${ppiDir}/${i}.txt
+	# echo $inputFUMC > ${ppiDir}/${i}.txt
 
 
 	# Write scripts
@@ -243,7 +251,7 @@ EOF
 	cat > MVM_PPI_AllSMC_${i}.sh << EOF
 module load r/3.6
 
-3dMVM -prefix MVM_AllSMC_${i} \
+3dMVM -prefix MVM_PPI_AllSMC_${i} \
 -jobs 10 \
 -mask $mask \
 -bsVars 'Group' \
@@ -260,20 +268,20 @@ EOF
 done
 
 
-# ### run scripts
-# for i in MVM*.sh; do
-# 	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
-# 		source $i
-# 	fi
+### run scripts
+for i in MVM*.sh; do
+	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
+		source $i
+	fi
 
-# 	# check
-# 	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
-# 		echo >&2
-# 		echo "Error: ${i%.*}+tlrc not detected. Exiting..." >&2
-# 		echo >&2
-# 		exit 2
-# 	fi
-# done
+	# check
+	if [ ! -f ${i%.*}+tlrc.HEAD ]; then
+		echo >&2
+		echo "Error: ${i%.*}+tlrc not detected. Exiting..." >&2
+		echo >&2
+		exit 2
+	fi
+done
 
 
 
@@ -281,32 +289,33 @@ done
 # ### --- Monte Carlo --- ###
 
 
-# for i in ${compList[@]}; do
-# 	for j in ${seedName[@]}; do
+for i in ${compList[@]}; do
+	for j in ${seedName[@]}; do
 
-# 		# pull parameter estimate
-# 		print=ACF_raw_${i}_${j}.txt
-# 		if [ ! -s $print ]; then
-# 			> $print
-# 			for k in ${subjList[@]}; do
-# 				file=${workDir}/${k}/PPI_${i}_${j}_errts_REML_blur${blurInt}+tlrc
-# 				3dFWHMx -mask $mask -input $file -acf >> $print
-# 			done
-# 		fi
+		# pull parameter estimate
+		print=ACF_raw_${i}_${j}.txt
+
+		if [ ! -s $print ]; then
+			> $print
+			for k in ${subjList[@]}; do
+				file=${workDir}/${k}/PPI_${i}_${j}_errts_REML_blur${blurInt}+tlrc
+				3dFWHMx -mask $mask -input $file -acf >> $print
+			done
+		fi
 
 
-# 		# run simultaions
-# 		if [ ! -s ${print/raw/MC} ]; then
+		# run simultaions
+		if [ ! -s ${print/raw/MC} ]; then
 
-# 			sed '/ 0  0  0    0/d' $print > tmp
+			sed '/ 0  0  0    0/d' $print > tmp
 
-# 			xA=`awk '{ total += $1 } END { print total/NR }' tmp`
-# 			xB=`awk '{ total += $2 } END { print total/NR }' tmp`
-# 			xC=`awk '{ total += $3 } END { print total/NR }' tmp`
+			xA=`awk '{ total += $1 } END { print total/NR }' tmp`
+			xB=`awk '{ total += $2 } END { print total/NR }' tmp`
+			xC=`awk '{ total += $3 } END { print total/NR }' tmp`
 
-# 			3dClustSim -mask $mask -LOTS -iter 10000 -acf $xA $xB $xC > ${print/raw/MC}
-# 			rm tmp
-# 		fi
-# 	done
-# done
+			3dClustSim -mask $mask -LOTS -iter 10000 -acf $xA $xB $xC > ${print/raw/MC}
+			rm tmp
+		fi
+	done
+done
 
